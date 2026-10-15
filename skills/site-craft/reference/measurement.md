@@ -138,7 +138,7 @@ Treat the numbers as noisy (many AI clicks arrive as Direct). Pair with the manu
 
 ## Worked example (TMC, 2026-09-30)
 
-`clientes/the-marketing-cartel/09-measurement-plan.md`: first/last touch + click ids as hidden fields; game-plan quiz
+`.claude/skills/site-method/examples/tmc-measurement-plan.md`: first/last touch + click ids as hidden fields; game-plan quiz
 funnel events; section reach; CTA location; web-vitals to GA4; Clarity after interaction; Search Console Domain +
 BigQuery export; offline conversions to Ads/Meta from CRM status; build order: capture + backend + CRM -> GA4 events ->
 Search Console/Bing -> call tracking -> recordings -> offline conversions -> warehouse + dashboard -> improvement loop.

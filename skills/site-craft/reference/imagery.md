@@ -1,14 +1,14 @@
 # Imagery - generated branded scenes
 
 How we make a site's images: AI-generated, art-directed scenes in the brand's world (branded-generated-imagery
-memory). Proven on Gem Cap (`clientes/gem-cap-trucking/06-brand/IMAGE-PLAN.md`, the worked example with tools);
+memory). Proven on Gem Cap (`.claude/skills/site-method/examples/gemcap-image-plan.md`, the worked example with tools);
 iteration rules partly from the "Commercial Pipeline" skill (unlicensed: ideas only, no text copied; scan
-`_metodologia/inbox/2026-10-14-arthur-links-scan.md`).
+`.claude/skills/site-method/examples/links-scan-2026-10-14.md`).
 
 ## Order (per site)
 
 1. **Direction first.** 3-4 styles on the SAME scene, 2 cheap samples each, one comparison page, ★ on the
-   recommendation; the full set only after Arthur picks (image-direction-first memory, CLAUDE.md phase 6).
+   recommendation; the full set only after Arthur picks (image-direction-first memory, operating-rules.md phase 6).
    **The sample he approves becomes the style reference image**: attached to every prompt of the set (with "match
    this image's style, light and grade; use it only for style"), and its look words become the shared LOOK block.
    Then a first small batch (2-3 slots) for a quick look before the rest, so a drift is caught early.
@@ -32,7 +32,7 @@ Fixed blocks in a fixed order: FORMAT + COMPOSITION + SUBJECT + SETTING + LOOK +
   separately worded descriptions of the same thing produce two different things; the set must read as one shoot.
 - **Per-slot blocks** (COMPOSITION, SETTING) are the only ones that change.
 - **Framing from a layout guide, not from words.** Models follow "subject in the right 45%" loosely and refuse to
-  draw a small subject; a guide image placed where the subject must land works (Gem Cap `tools/img/guide.py`).
+  draw a small subject; a guide image placed where the subject must land works (`.claude/skills/site-craft/tools/img/guide.py`).
 - **Scale in the words, not baked in**: generate the object at its normal size; the size relationship is stated in
   the prompt or solved by the crop.
 - **Vehicles, machines, props**: three-quarter view, whole object in frame, real material wear (clean CAD-looking

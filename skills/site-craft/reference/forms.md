@@ -76,7 +76,7 @@ breakpoint, separately for pages with a preset answer (it shows Next: taller). R
 
 ## 4. Port, don't rebuild
 
-- Classic steps (Elevate's version has every rule above): `clientes/elevate-legal/site/public/js/forms.js`,
+- Classic steps (Elevate's version has every rule above): `.claude/skills/site-method/examples/elevate-forms.js`,
   `src/components/ConsultationForm.astro`, `IntakeBand.astro`, form CSS in `07-style-guide/components.css` (form card,
   `.form-card__top`, `.form-back`, chips, `.is-picked`, `step-in`) and `sections.css` (intake band, slot heights).
 - The adaptive quiz (several single/multi questions that build an answer): TMC E11 `site/public/home/gameplan.js` +

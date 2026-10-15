@@ -10,7 +10,7 @@ licenses: `NOTICE.md`.
 
 ## Precedence (highest first)
 
-1. `CLAUDE.md` rules (motion vs. Core Web Vitals, Lighthouse gate, passive testing) and Arthur's memories.
+1. `.claude/skills/site-method/reference/operating-rules.md` rules (motion vs. Core Web Vitals, Lighthouse gate, passive testing) and Arthur's memories (index in operating-rules.md).
 2. The client's `DESIGN.md` / approved style guide and `DECISOES.md`.
 3. This skill.
 
@@ -41,7 +41,7 @@ Read before writing CSS/markup:
 - `reference/known-mistakes.md` - the ledger: every mistake Arthur already caught, its rule and its check. Obey it.
 
 **Look while building (Arthur 2026-10-14).** After each section (not each edit), before starting the next:
-`node tools/look/look.mjs <base> <route> --el "<section>"` (+ `--hover` for cards/buttons with hover, `--states` for
+`node .claude/skills/site-craft/tools/look/look.mjs <base> <route> --el "<section>"` (+ `--hover` for cards/buttons with hover, `--states` for
 form steps or menus), fix every FAIL, then open `sheet.png` and actually look at it. The misses in the ledger were
 states nobody looked at (dark theme, desktop, step 2, hover, after a reload), not a lack of screenshots.
 
@@ -57,7 +57,7 @@ Run every check in `reference/known-mistakes.md` (its tools: `anchor-landing.mjs
 new mistake Arthur catches to it the same day (symptom, cause, rule, check).
 Fix P0/P1 findings before showing; list P2/P3 briefly. Copy and SEO have their own skills: `site-copy`, `site-seo`.
 
-## Non-negotiables carried from CLAUDE.md
+## Non-negotiables carried from operating-rules.md
 
 - Animate only `transform` and `opacity`; reveals reserve space (no CLS); nothing delays the LCP element;
   `prefers-reduced-motion` always respected; CSS first, JS only below the fold.

@@ -1,7 +1,7 @@
 # Effects - CSS recipes
 
 Our own recipes, reimplemented from ideas seen in Kinetics (ckissi/kinetics), MicroKit (microkit.co), Magic UI
-and Aceternity's free tier (scan: `_metodologia/inbox/2026-10-14-arthur-links-scan.md`). No code copied: those
+and Aceternity's free tier (scan: `.claude/skills/site-method/examples/links-scan-2026-10-14.md`). No code copied: those
 are React/Tailwind/Framer Motion, and we never install them. Every recipe obeys `motion.md`: transform/opacity
 only, nothing above the fold waits on it, hover gated to `(hover: hover) and (pointer: fine)`, reduced motion
 handled. Use one or two per site, where they serve a purpose (feedback, proof, attention on the CTA). A sober brand

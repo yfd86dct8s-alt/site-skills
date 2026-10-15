@@ -1,4 +1,4 @@
-Distilled from addyosmani/agent-skills `security-and-hardening` (MIT, commit 1be8e34, read 2026-10-12). Changes: cut to static site + small PHP endpoints; Always/Ask-first/Never tiers rewritten for our passive-testing rule; CSP rollout via Report-Only added; AI/LLM, SQL and auth sections dropped. For deep review use the `security-audit` skill; for attacks see CLAUDE.md (Strix rules).
+Distilled from addyosmani/agent-skills `security-and-hardening` (MIT, commit 1be8e34, read 2026-10-12). Changes: cut to static site + small PHP endpoints; Always/Ask-first/Never tiers rewritten for our passive-testing rule; CSP rollout via Report-Only added; AI/LLM, SQL and auth sections dropped. For deep review use the `security-audit` skill; for attacks see operating-rules.md (Strix rules).
 
 # Security headers and small endpoints
 
@@ -24,7 +24,7 @@ Scope: Astro static output served by nginx/Apache/cPanel (or Cloudflare) plus sm
 - Commit secrets; log full personal data or message bodies; expose stack traces or `phpinfo`.
 - Disable a header "to make it work"; use `eval`/`innerHTML` with visitor data.
 - Run active tests against a client's production site, or use their credentials. Passive reading of
-  public headers only (CLAUDE.md). Strix/active testing: own sites after approval, or a local clone.
+  public headers only (operating-rules.md). Strix/active testing: own sites after approval, or a local clone.
 - Promise N-month lead deletion in policies (delete on request).
 
 ## Header set

@@ -10,7 +10,7 @@ licenses: `NOTICE.md`.
 
 ## Precedence (highest first)
 
-1. `CLAUDE.md` and Arthur's memories: copy from the visitor's side, no weak numbers, claims need proof,
+1. `.claude/skills/site-method/reference/operating-rules.md` and Arthur's memories (index in operating-rules.md): copy from the visitor's side, no weak numbers, claims need proof,
    no fake/demo data, deliverables in English.
 2. The client's dossier: `DECISOES.md`, `02-legal-advertising.md` (regulated clients), approved proof
    ledger, brand voice in `DESIGN.md`.

@@ -6,7 +6,7 @@ site does not depend on luck. Arthur 2026-10-12: "vai anotando todos esses erros
 de ver no próximo, porque já sabíamos que aconteceria e já nos precavemos."
 
 Format: **symptom** (site, date) - cause - rule - check. Tools live in the client's `tools/` folder (Elevate has the
-reference copies: `clientes/elevate-legal/tools/`); copy them into each new site.
+reference copies: `.claude/skills/site-craft/tools/checks/`); copy them into each new site.
 
 ## Fonts and line breaks
 
@@ -112,7 +112,7 @@ reference copies: `clientes/elevate-legal/tools/`); copy them into each new site
     parecendo que eles aumentam. nesse tá parecendo zoom na imagem"). Cause: the AI-extended background behind him carried
     a palm shadow; the hover scale grew the pattern with him, so the wall visibly zoomed, while the other plain walls hid
     the scale. Rule: portraits that share a hover scale share a plain, pattern-free wall (light falloff only); fix a stray
-    one by rebuilding the wall, never by touching the person (`tools/img/people_plainwall.py <key>`). Check: put the team
+    one by rebuilding the wall, never by touching the person (`.claude/skills/site-craft/tools/img/people_plainwall.py <key>`). Check: put the team
     portraits side by side and look for any texture behind a head before shipping.
 
 

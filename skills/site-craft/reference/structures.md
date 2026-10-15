@@ -1,7 +1,7 @@
 # Structures: page macrostructures and component archetypes
 
 Source: Hallmark by Nutlope (MIT, github.com/Nutlope/hallmark), `references/macrostructures/` and
-`references/components/`. Rewritten, no text copied; our overrides win (CLAUDE.md, memories, DESIGN.md,
+`references/components/`. Rewritten, no text copied; our overrides win (operating-rules.md, memories, DESIGN.md,
 `craft-floor.md`, `motion.md`, `mobile.md`, `forms.md`, `effects.md`, `imagery.md`).
 
 ## How to use (phase 4, architecture + wireframe)

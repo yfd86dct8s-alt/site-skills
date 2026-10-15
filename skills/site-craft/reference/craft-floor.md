@@ -1,7 +1,7 @@
 # Craft floor
 
 Adapted from Impeccable `reference/craft-floor.md` (Apache-2.0, Paul Bakaus). Changes: motion rule
-replaced by this repo's CLAUDE.md rule; detector/hook references removed; marketing-site notes added.
+replaced by the operating rules' (site-method `reference/operating-rules.md`) rule; detector/hook references removed; marketing-site notes added.
 
 The approved DESIGN.md / style guide overrides anything here; your own habit does not.
 
