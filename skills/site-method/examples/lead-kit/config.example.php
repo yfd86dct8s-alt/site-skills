@@ -23,6 +23,10 @@ return array(
   // 'AUTOREPLY' => true,
   // 'AUTOREPLY_FROM' => 'GEMCAP Trucking <noreply@gemcaptrucking.com>',
   // 'AUTOREPLY_REPLY_TO' => 'info@gemcaptrucking.com',
+  // At most this many confirmations per UTC day (the Resend account is shared with other sites; lead alerts come first).
+  // 'AUTOREPLY_PER_DAY' => 30,
+  // Optional. Who gets the site-guard alerts (guard-config.php); default the TMC team.
+  // 'GUARD_ALERT_TO' => array('erick@marketingcartel.com'),
   // Optional. Leads per visitor IP per hour before the form gets 429 (default 30, 0 = off).
   // 'RATE_PER_HOUR' => 30,
   // Optional. Count visitors by CF-Connecting-IP / X-Real-IP / X-Forwarded-For instead of REMOTE_ADDR. Leave off on

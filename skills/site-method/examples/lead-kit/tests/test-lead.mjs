@@ -11,14 +11,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const leadJs = resolve(root, '../../site/functions/api/lead.js');
 const tmp = mkdtempSync(join(tmpdir(), 'gemcap-lead-'));
-const PORT = 8790, STUB = 8791, PORT2 = 8792, PORT3 = 8793;
+const PORT = 8790, STUB = 8791, PORT2 = 8792, PORT3 = 8793, PORT4 = 8794;
 const out = join(tmp, 'stub.jsonl'), mode = join(tmp, 'stub-mode');
-const cfgDir = join(tmp, 'gemcap-config'), cfgDir2 = join(tmp, 'cfg2'), cfgDir3 = join(tmp, 'cfg3');
-mkdirSync(cfgDir); mkdirSync(cfgDir2); mkdirSync(cfgDir3);
+const cfgDir = join(tmp, 'gemcap-config'), cfgDir2 = join(tmp, 'cfg2'), cfgDir3 = join(tmp, 'cfg3'), cfgDir4 = join(tmp, 'cfg4');
+mkdirSync(cfgDir); mkdirSync(cfgDir2); mkdirSync(cfgDir3); mkdirSync(cfgDir4);
 const cfgPhp = (key, stub, rate = 1000) => `<?php return array('RESEND_API_KEY'=>'${key}','LEAD_TO'=>'info@gemcaptrucking.com','LEAD_FROM'=>'GEMCAP Website <alerts@marketingcartel.com>','TEST_TOKEN'=>'test-token-local','TEST_TO'=>'qa@example.test','RATE_PER_HOUR'=>${rate},'TRUST_PROXY_HEADERS'=>true,'RESEND_API_URL'=>'http://127.0.0.1:${stub}/emails');`;
 writeFileSync(join(cfgDir, 'config.php'), cfgPhp('test-key-local', STUB));
 writeFileSync(join(cfgDir2, 'config.php'), cfgPhp('re_CHANGE_ME', STUB));
 writeFileSync(join(cfgDir3, 'config.php'), cfgPhp('test-key-local', STUB, 3));
+writeFileSync(join(cfgDir4, 'config.php'), cfgPhp('test-key-local', STUB).replace(');', ",'AUTOREPLY_PER_DAY'=>1);"));
 writeFileSync(mode, 'ok');
 
 const procs = [];
@@ -28,6 +29,7 @@ php(['-S', `127.0.0.1:${STUB}`, join(here, 'stub-resend.php')], { STUB_OUT: out,
 php([...ini, '-S', `127.0.0.1:${PORT}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir, 'config.php') });
 php([...ini, '-S', `127.0.0.1:${PORT2}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir2, 'config.php') });
 php([...ini, '-S', `127.0.0.1:${PORT3}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir3, 'config.php') });
+php([...ini, '-S', `127.0.0.1:${PORT4}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir4, 'config.php') });
 await new Promise(r => setTimeout(r, 1500));
 
 let pass = 0, fail = 0;
@@ -200,6 +202,15 @@ ok(ack.body.to[0] === 'ack3@example.com' && ack.body.subject === 'We received yo
 a0 = acks().length;
 r = await json({ ...contact, fields: { name: 'Phone Only', phone: '5550002222', message: 'call me' } });
 ok(r.j?.ok && acks().length === a0, 'autoreply: no email address -> no confirmation');
+
+{
+  const U4 = `http://127.0.0.1:${PORT4}/api/lead`, before = acks().length;
+  await json({ ...contact, fields: { ...contact.fields, email: 'cap1@example.com' } }, {}, U4);
+  r = await json({ ...contact, fields: { ...contact.fields, email: 'cap2@example.com' } }, {}, U4);
+  const got = acks().slice(before).map(a => a.body.to[0]);
+  ok(r.j?.ok && got.length === 1 && got[0] === 'cap1@example.com' && /AUTOREPLY_PER_DAY reached/.test(readFileSync(join(cfgDir4, 'spool', 'relay.log'), 'utf8')),
+    'autoreply: AUTOREPLY_PER_DAY caps confirmations (shared Resend quota); the lead still goes out', JSON.stringify(got));
+}
 
 // Cloudflare edges: CF-Connecting-IP counts only when REMOTE_ADDR is a Cloudflare address
 {

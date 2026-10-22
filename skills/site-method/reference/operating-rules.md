@@ -156,7 +156,7 @@ registrada em `experimentos/REGISTRO.md`. Ver `experimentos/README.md`.
 - **Rejections need a concrete conflict** — reject skill/ref ideas only for a named rule/decision/perf conflict; taste → toggle; adapt before dropping
 - **Skills are niche-agnostic** — method/skills serve any site and niche; law/trucking are worked examples only; never brief agents by niche
 - **cPanel use authorized** — read (10-15) + change for hub onboarding (10-16) on any of our cPanels; log in ESCOPO first
-- **site-skills GitHub copy** — private yfd86dct8s-alt/site-skills (C:/dev/site-skills); re-sync with its sync.sh (self-contained); check private (API 404) before every push
+- **site-skills GitHub copy** — yfd86dct8s-alt/site-skills (C:/dev/site-skills), PUBLIC ok (2026-10-22); re-sync with sync.sh; scan output for secrets/origin IPs before push
 - **No phone apps** — never ask him/TMC to install apps; alerts by email; outside accounts only when the server can't do it, with the reason
 - **Explain, don't script** — "o que eu falo pra ele" = explain to Arthur plainly, no ready-made message in his voice
 - **Erick's account loan** — from 2026-10-15 ~1 week; claude-erick shares projects/memories via junctions; rmdir junctions before deleting it

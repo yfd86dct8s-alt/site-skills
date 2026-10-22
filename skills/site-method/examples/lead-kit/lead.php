@@ -95,7 +95,7 @@ function gem_config() {
   $c = array_merge(array(
     'RESEND_API_KEY' => '', 'LEAD_TO' => GEM_DEFAULT_TO, 'LEAD_FROM' => GEM_DEFAULT_FROM, 'TEST_TOKEN' => '', 'TEST_TO' => '',
     'RESEND_API_URL' => 'https://api.resend.com/emails', 'SPOOL_DIR' => dirname($file) . '/spool', 'RATE_PER_HOUR' => 30, 'TRUST_PROXY_HEADERS' => false,
-    'AUTOREPLY' => true, 'AUTOREPLY_FROM' => GEM_DEFAULT_AUTOREPLY_FROM, 'AUTOREPLY_REPLY_TO' => '',
+    'AUTOREPLY' => true, 'AUTOREPLY_FROM' => GEM_DEFAULT_AUTOREPLY_FROM, 'AUTOREPLY_REPLY_TO' => '', 'AUTOREPLY_PER_DAY' => 30,
   ), $c);
   $c['TRUST_PROXY_HEADERS'] = !empty($c['TRUST_PROXY_HEADERS']);
   $c['AUTOREPLY'] = !empty($c['AUTOREPLY']);
@@ -373,6 +373,24 @@ function gem_autoreply_compose($form, $f) {
   $text .= "\n" . $close . "\n\n" . $foot . "\n" . GEM_SITE . "\n" . $note . "\n";
   return array('subject' => $subject, 'html' => $html, 'text' => $text);
 }
+// The Resend account is shared with other sites (free plan: 100 emails a day) and lead alerts come first: at most
+// AUTOREPLY_PER_DAY confirmations per UTC day from this site (0 = none). Fails closed: no counter, no confirmation.
+function gem_autoreply_quota($dir, $limit) {
+  if ($limit <= 0 || !$dir) return false;
+  $ad = $dir . '/autoreply';
+  if (!is_dir($ad) && !@mkdir($ad, 0700, true)) return false;
+  $fh = @fopen($ad . '/day-' . gmdate('Y-m-d') . '.count', 'c+');
+  if (!$fh) return false;
+  $ok = false;
+  if (flock($fh, LOCK_EX)) {
+    $n = (int)stream_get_contents($fh);
+    if ($n < $limit) { $ok = true; ftruncate($fh, 0); rewind($fh); fwrite($fh, (string)($n + 1)); fflush($fh); }
+    flock($fh, LOCK_UN);
+  }
+  fclose($fh);
+  foreach (glob($ad . '/day-*.count') ?: array() as $g) if (@filemtime($g) < time() - 3 * 86400) @unlink($g);
+  return $ok;
+}
 // true when this address got no confirmation in the last 24 h (and records this one); fails open
 function gem_autoreply_due($dir, $email) {
   if (!$dir) return true;
@@ -390,6 +408,7 @@ function gem_autoreply($cfg, $form, $f, $email, $test, $id) {
   $to = $test ? gem_recipients($cfg['TEST_TO']) : array($email);   // a test never mails the address typed in the form
   if (!$to) return;
   if (!$test && !gem_autoreply_due(gem_spool_dir($cfg), $email)) { gem_log('relay', 'autoreply skipped (sent to this address < 24 h ago) lead ' . $id); return; }
+  if (!$test && !gem_autoreply_quota(gem_spool_dir($cfg), (int)$cfg['AUTOREPLY_PER_DAY'])) { gem_log('relay', 'autoreply skipped (AUTOREPLY_PER_DAY reached: lead alerts keep the shared quota) lead ' . $id); return; }
   $m = gem_autoreply_compose($form, $f);
   $replyTo = gem_recipients($cfg['AUTOREPLY_REPLY_TO'] !== '' ? $cfg['AUTOREPLY_REPLY_TO'] : $cfg['LEAD_TO']);
   $body = array('from' => $cfg['AUTOREPLY_FROM'] !== '' ? $cfg['AUTOREPLY_FROM'] : GEM_DEFAULT_AUTOREPLY_FROM, 'to' => $to,

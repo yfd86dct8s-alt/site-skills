@@ -39,6 +39,11 @@ implementation is GEMCAP's (`.claude/skills/site-method/examples/lead-kit/`: `le
   (DKIM TXT, MX + TXT on `send`, CNAME `rsend`, all "DNS only") with the first DNS ask; until Resend verifies it, send
   from our verified domain with the client's display name and log the switch in `PRE-PRODUCTION.md`.
 - **Lead safety.** Spool before send, replay cron, never a fake success, per-IP limit that is proxy-aware (below).
+- **Shared email quota.** Our Resend account serves every site (free plan: 100 emails/day): lead alerts come first, so
+  confirmations have their own daily cap / reserve (GEMCAP `AUTOREPLY_PER_DAY`, TMC `autoreply_reserve` on the alert
+  ledger). When confirmations run on 3+ sites, tell Arthur the plan needs upgrading before the cap bites.
+- **Links out open in a new tab, enforced by the build** (a post-build HTML pass, TMC `strip-internal.mjs`
+  `externalNewTab`), not by hand: migrated blog posts carried 30 same-tab links on TMC (found 2026-10-22).
 - **Light/dark theme toggle**, ported from GEMCAP (TMC, GEMCAP and Elevate have it; Erick asked for it on Cold Air).
 - **Ad landing pages** (`/lp/*`): noindex by header and meta, out of the sitemap, from the first deploy.
 - **File-integrity guard** (`tools/site-guard`) on every host we run (cPanel): manifest per publish.
