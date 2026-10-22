@@ -23,6 +23,8 @@ rediscovering them on Arthur's phone. Copy rules for forms (field cost, labels, 
    SMS consent = unchecked, optional, never a condition).
 7. **Ready to connect, never fake:** no endpoint -> the submit says the form is not connected yet and gives the phone,
    keeping what was typed. With an endpoint: POST, then the thank-you page (noindex, says what happens next).
+   The endpoint sends two emails, the client's alert and the visitor's confirmation (`site-method` "Every site
+   ships these").
 
 ## 2. Behaviour
 

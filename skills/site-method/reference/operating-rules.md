@@ -28,6 +28,11 @@ entrada, procedimento e saída de cada fase (baseline e inventário de sistemas 
 fase 4, varredura de referências e recibo da fase 5, direção de imagem da fase 6, PRE-PRODUCTION e entrega de leads
 da fase 9). Ler a seção da fase na hora, não de memória. Ela é viva: lição nova de processo entra nela no mesmo dia.
 
+**Padrões de todo site** (pedidos de Arthur/Erick que nunca se pedem duas vezes: e-mail de confirmação ao visitante,
+remetente no domínio do cliente, tema claro/escuro, noindex em /lp/, guarda de arquivos, preview só com o site, regras
+atrás do Cloudflare): seção "Every site ships these" da `site-method`. Pedido novo que valha para todos os sites entra
+lá no mesmo dia.
+
 Regra do baseline: o alvo da fase 9 é `max(baseline, limiar absoluto de "bom")`; o piso levanta a meta, nunca a
 abaixa. Medição sempre passiva; nunca ativa na produção deles.
 
@@ -120,13 +125,13 @@ registrada em `experimentos/REGISTRO.md`. Ver `experimentos/README.md`.
 - **Reveal pace** — reveals ~240/320 ms, fire at the screen edge; review cards faster and earlier
 - **Awave: ideas only** — Awave Agents license: reimplement ideas, never copy its code/prompts/SKILL.md into hub/sites
 - **Clear at a safe boundary** — checkpoints + push + "Seguro para /clear agora" + stage table/ETA; agents SURVIVE /clear (2026-10-15): list in-flight ids in HANDOFF, never re-dispatch
-- **TMC cPanel host gotchas** — CSC-Webhost-001: clear NGINX cache after uploads; mail routing Local→Remote; server can't mail Google → Resend (full verify); Windows zips = 0777
+- **TMC cPanel host gotchas** — CSC-Webhost-001: no gzip (ship .gz twins); clear NGINX cache after uploads; mail routing Local→Remote; server can't mail Google → Resend (full verify); Windows zips = 0777
 - **Verify lead delivery before switch** — prove a test alert is DELIVERED from the prod server before going live
 - **Hash every image URL** — re-exported photos stay stale 7 days unless every img/OG URL has ?h=<hash>
 - **Web toolbox path** — browser scripts require playwright/lighthouse from C:/dev/web-toolbox (manifest tools/web-toolbox); never a scratchpad
 - **Machine move Oct 2026** — notebook → Arthur's PC via pendrive kit C:\dev\mudanca-websites; restore log first if paths/tools break; old notebook fallback ~1 week
-- **Keep PowerToys on his PC** — Mouse Without Borders is his keyboard; never stop PowerToys; other non-essential apps may close for RAM
-- **Paste in chat, not paths** — text he must read/forward goes pasted in the final message; never a file path to open
+- **Closing apps on his PC** — any app incl. PowerToys may close for RAM when parallel work needs it (OK 2026-10-15); MWB = his keyboard, close it last
+- **Paste in chat, not paths** — forwarded text pasted WhatsApp-ready (plain code block, English for Erick); impersonal, Arthur = first person, never as Claude
 - **No fixed lead deletion** — policies don't promise N-month lead deletion; keep leads, delete on request
 - **Lead alert recipients** — TMC leads: Wilbur main + Erick backup only; every other client site gets its own recipients
 - **Claims need proof** — counts/exclusivity need proof at copy time (incl. screenshots); a client's written confirmation is the proof; awards + claims Arthur states true: his call
@@ -137,6 +142,7 @@ registrada em `experimentos/REGISTRO.md`. Ver `experimentos/README.md`.
 - **Image direction first** — show 3-4 image styles (2 cheap samples each) before generating a site's image set
 - **Reference sweep arsenal** — phase 5 sweeps galleries into _metodologia/referencias/; proposals carry 2-3 alternatives
 - **Known mistakes ledger** — every bug Arthur catches -> site-craft known-mistakes.md (cause, rule, check) same day; run its checks before showing
+- **Site defaults for every site** — a request that fits every site becomes a site-method "Every site ships these" default the same day (confirmation email...)
 - **Proportional checks** — size checks to the change; CSS tweak = targeted shots + package diff vs live; bound delegated checks
 - **Token-cost levers** — spend = Opus subagents at 200k+ context; fresh-vs-resume + context ceiling (CONTINUE ~100 calls), no carries to 200k+ agents, small streams
 - **Publish myself** — after "pode publicar" I run the deploy (cPanel publish.mjs, pushes); he doesn't run commands
@@ -149,5 +155,19 @@ registrada em `experimentos/REGISTRO.md`. Ver `experimentos/README.md`.
 - **graphify A/B deferred** — promised for E12 S5, deferred 2026-10-15; run at the S6 final review on ONE small unit (the extra arm costs one task run); Effortless not A/B-tested (main-thread only)
 - **Rejections need a concrete conflict** — reject skill/ref ideas only for a named rule/decision/perf conflict; taste → toggle; adapt before dropping
 - **Skills are niche-agnostic** — method/skills serve any site and niche; law/trucking are worked examples only; never brief agents by niche
-- **cPanel read authorized** — read/download from any of our cPanels OK (2026-10-15); writes keep their own OK; log in ESCOPO first
-- **site-skills GitHub copy** — private yfd86dct8s-alt/site-skills (C:\dev\site-skills) = snapshot of the 4 skills; re-sync after changes; check private first
+- **cPanel use authorized** — read (10-15) + change for hub onboarding (10-16) on any of our cPanels; log in ESCOPO first
+- **site-skills GitHub copy** — private yfd86dct8s-alt/site-skills (C:/dev/site-skills); re-sync with its sync.sh (self-contained); check private (API 404) before every push
+- **No phone apps** — never ask him/TMC to install apps; alerts by email; outside accounts only when the server can't do it, with the reason
+- **Explain, don't script** — "o que eu falo pra ele" = explain to Arthur plainly, no ready-made message in his voice
+- **Erick's account loan** — from 2026-10-15 ~1 week; claude-erick shares projects/memories via junctions; rmdir junctions before deleting it
+- **Subscription quota only** — no extra-usage credits (Arthur 2026-10-15); near the limit stop clean, resume fresh after the weekly reset
+- **Server deploys: durable OK** — update/deploy/upload to any server I can reach, any situation, never ask (2026-10-15)
+- **Re-run after a memory kill** — reaped for RAM → close unneeded/orphaned processes, re-run at once with lower concurrency; never wait for his OK
+- **Confirm what was read** — open replies to his attachments with a receipt list (each file/audio read + what it held); ask for anything referenced but missing
+- **TMC's role in the lead flow** — client firms answer/mark their own leads (email links); TMC only watches and reports via the hub; clients see the portal
+- **TMC client roster + hosting** — each TMC client: host (cPanel/Shopify/server 1-2), frozen/lost/not-ours; elaw lost → out of hub
+- **External links in a new tab** — every link out gets target=_blank rel=noopener, never replaces our site; scan dist after builds
+- **Artifact sub-page links** — never target=_blank to a sibling file in an artifact (frame URL blocked); publish it as its own artifact and link that
+- **Bold, current look** — colourful + personality, always pill, but colour = meaning: one action colour, few hues ("500 cores" = messy, Cold Air 2026-10-21)
+- **cPanel 2FA keys** — logins ask TOTP since 2026-10-21; keys in his "cPanel 2FA" sheet; GEMCAP + TMC keys stored (TMC 2026-10-22)
+- **Serena dashboard leak** — low RAM: first kill the Serena dashboard webview (8.8 GB after a week) + orphan greps; check parent chain before blaming his apps

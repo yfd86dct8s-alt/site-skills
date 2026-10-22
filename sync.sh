@@ -49,6 +49,10 @@ cp "$SRC/clientes/gem-cap-trucking/06-brand/IMAGE-PLAN.md" "$X/gemcap-image-plan
 cp "$SRC/clientes/elevate-legal/site/public/js/forms.js" "$X/elevate-forms.js"
 cp "$SRC/_metodologia/referencias/README.md" "$X/reference-sources.md"
 cp "$SRC/_metodologia/inbox/2026-10-14-arthur-links-scan.md" "$X/links-scan-2026-10-14.md"
+L="$SRC/clientes/gem-cap-trucking/launch/cpanel"; mkdir -p "$X/lead-kit/tests"   # the lead endpoint every site ports
+cp "$L/public_html/api/lead.php" "$L/gemcap-config/config.example.php" "$X/lead-kit/"
+cp "$SRC/clientes/gem-cap-trucking/site/functions/api/lead.js" "$X/lead-kit/"
+cp "$L/tests/test-lead.mjs" "$L/tests/router.php" "$L/tests/stub-resend.php" "$X/lead-kit/tests/"
 
 # 4. point the skills at the copies (the tool READMEs too: their usage lines say tools/look/...)
 find "$OUT" -name '*.md' ! -name operating-rules.md -print0 | xargs -0 sed -i -E \
@@ -59,6 +63,7 @@ find "$OUT" -name '*.md' ! -name operating-rules.md -print0 | xargs -0 sed -i -E
   -e "s#_metodologia/referencias/README\.md#$S/site-method/examples/reference-sources.md#g" \
   -e "s#_metodologia/inbox/2026-10-14-arthur-links-scan\.md#$S/site-method/examples/links-scan-2026-10-14.md#g" \
   -e "s#clientes/elevate-legal/tools/#$S/site-craft/tools/checks/#g" \
+  -e "s#clientes/gem-cap-trucking/launch/cpanel/\`: \`public_html/api/lead\.php\`#$S/site-method/examples/lead-kit/\`: \`lead.php\`#g" \
   -e "s#\.claude/skills/site-craft/reference/known-mistakes\.md#$S/site-craft/reference/known-mistakes.md#g" \
   -e "s#(^|[ \`(])tools/look/#\1$S/site-craft/tools/look/#g" \
   -e "s#(^|[ \`(])tools/web-toolbox/#\1$S/site-craft/tools/web-toolbox/#g" \

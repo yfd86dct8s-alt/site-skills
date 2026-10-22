@@ -53,7 +53,8 @@ light, wanting what), then let the floor hold the mechanics.
 Follow `reference/review.md`: one design read (specificity, hierarchy, personas) and one mechanical read
 (`reference/web-interface-checklist.md` + the floor's Verify list) - as two isolated subagents when the
 page set is large, inline for a single section. Add the manual test in `reference/accessibility.md`; on deploy builds also `reference/security-headers.md`.
-Run every check in `reference/known-mistakes.md` (its tools: `anchor-landing.mjs`, `font-fallback.mjs`, `form-flow.mjs`) and add any
+Run every check in `reference/known-mistakes.md` (its tools: `anchor-landing.mjs`, `font-fallback.mjs`, `form-flow.mjs`,
+`colour-roles.mjs`, `first-screen-fit.mjs`) and add any
 new mistake Arthur catches to it the same day (symptom, cause, rule, check).
 Fix P0/P1 findings before showing; list P2/P3 briefly. Copy and SEO have their own skills: `site-copy`, `site-seo`.
 

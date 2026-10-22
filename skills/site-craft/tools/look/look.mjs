@@ -225,7 +225,7 @@ function report(tag, res, errs) {
 }
 
 for (const route of routesArg.split(',')) {
-  const slug = (route.replace(/^\/|\/$/g, '').replace(/\//g, '_') || 'home') + (EL ? '-' + EL.replace(/[^\w-]+/g, '') : '');
+  const slug = (route.replace(/^\/|\/$/g, '').replace(/[^\w.-]+/g, '_') || 'home') + (EL ? '-' + EL.replace(/[^\w-]+/g, '') : '');   // [^\w.-]: a query (?look=x) is not a Windows file name
   for (const v of VIEWS) for (const scheme of SCHEMES) {
     const ctx = await browsers[v.engine].newContext({ viewport: { width: v.w, height: v.h }, deviceScaleFactor: v.dsf,
       isMobile: v.mobile && v.engine !== 'firefox', hasTouch: v.mobile, colorScheme: scheme, reducedMotion: 'reduce' });

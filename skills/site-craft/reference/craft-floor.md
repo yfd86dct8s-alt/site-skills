@@ -48,8 +48,9 @@ Run them together in one inspection round per page, at 360, 390, 768 and 1534x69
 - **Instant inner pages (multi-page sites):** speculation rules prerender likely next pages
   (`eagerness: conservative` or `moderate`); analytics waits for `prerenderingchange` (`measurement.md`);
   Lighthouse re-run with tags on. Chromium-only, so it is a progressive enhancement.
-- **Button shape:** TMC and anything related to TMC = fully rounded (pill) buttons, always (Erick's request).
-  Other clients: corner shape is a style-guide toggle.
+- **Button shape:** fully rounded (pill) buttons, chips and nav on every site we build: TMC's explicit rule, and every
+  client comes through TMC (Erick's request; Arthur 2026-10-21 after a squared build: "é uma regra explícita do tmc que os
+  botões devem ser arredondados"). Never a style-guide toggle (known-mistakes #15).
 
 ## Refuse (category defaults - the brief may earn some back; reaching for one by habit means you were not deciding)
 

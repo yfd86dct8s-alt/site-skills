@@ -24,6 +24,10 @@ reference copies: `.claude/skills/site-craft/tools/checks/`); copy them into eac
    headline must keep its line count on the fallback, and the real test is Arthur's iPhone after a reload.
    Check: `node tools/font-fallback.mjs <base> / <inner routes>` (every fallback face loads in WebKit and Chromium; h1/h2/
    .lead keep their line count at 360/390/414 with the web fonts held back).
+   Addendum (Cold Air 4 U E04, 2026-10-21, found by the build's own check): WebKit drew a local Arial requested at 800 as
+   a SYNTHESISED bold, 11% wider, so the phone H1 broke into 4 lines on the fallback. Rule: fallback faces carry single
+   true weights (400/700); an 800 display face is requested at `font-weight: 700` + `font-variation-settings: 'wght' 800`
+   on the variable web font, so the fallback is a real Arial Bold. Same check.
 
 ## Shadows, bands and themes
 
@@ -116,6 +120,14 @@ reference copies: `.claude/skills/site-craft/tools/checks/`); copy them into eac
     portraits side by side and look for any texture behind a head before shipping.
 
 
+13b. **A decorative logo inside a hero photo frame came out stretched to a 16:10 box on phones** (GEMCAP cruise landing
+    page seal, found 2026-10-22 while putting the G on every seal). Cause: the hero's `.lp-hero__media img` (cover,
+    16:10, width 100%) out-ranked the component's own `.seal__g` (0,1,1 beats 0,1,0), so the badge's <img> took the
+    photo's rules. Rule: a component placed inside a media/photo frame styles its images with at least two classes
+    (`.seal .seal__g`) and resets what photo rules set (aspect-ratio, object-fit, width/height); frames style only
+    their own photo (`> picture > img`), never every descendant img. Check: screenshot each page that hosts the
+    component at 390 and 1534 and compare the badge's img box with its intrinsic ratio.
+
 ## Interaction
 
 13. **The hero photo sat under a blue veil after a few quick clicks on the theme button; only a reload cleared it**
@@ -129,3 +141,61 @@ reference copies: `.claude/skills/site-craft/tools/checks/`); copy them into eac
     prevents `mousedown` when `e.detail > 1`. Reference: GEMCAP `07-style-guide/nav.js` theme section. Check:
     `node tools/theme-clicks.mjs <base>` (Chrome + Edge, clicks and double clicks at 0-400 ms gaps: theme parity, no
     selection).
+
+14. **Client mark-ups on punctuation were skipped: circled periods stayed, drawn quote marks were never added**
+    (GEMCAP, 2026-10-20; Arthur: "tinham lugares que ele circulou pra retirar os pontos, e a gente não retirou ... desenhou
+    aspas ... e não adicionamos as aspas"). Cause: the round-2 pass read the words on the marked screenshots and missed
+    the small red marks on punctuation (thumbnails, low resolution). Rule: every marked screenshot is opened enlarged and
+    each mark is listed (circle on a mark = remove it, drawn quotes = add them, underline = capital) before applying; a
+    mark repeated on several headings is a pattern, so it is applied to every heading of the site, not only the marked
+    ones. Check: after a copy round, scan the built HTML for the pattern (e.g. every h1-h4 ending in "." in dist/) and
+    list what is left with a reason.
+
+## Direction and shape
+
+15. **Buttons and nav shipped squared (★) on a TMC client** (Cold Air 4 U, 2026-10-21; Arthur: "não gostei da navbar
+    ... é uma regra explícita do tmc que os botões devem ser arredondados", then on the pill toggle: "agora vi a navbar em
+    pílula, como nos outros websites, e tá melhor"). Cause: craft-floor said "TMC and TMC-related = always pill", but the
+    client was treated as non-TMC (every client comes through TMC; Cold Air's old site even links to TMC staging), so the
+    corner shape became a toggle with ★ squared, and structures N5 still asked to test a non-pill nav. Rule: pill
+    buttons, pill chips and the ported pill nav capsule on every site, always; shape is never a toggle. Check: before
+    showing, grep the build for button/chip/nav radii other than 999px and confirm the panel has no shape row.
+
+16. **The whole look read as dull and outdated next to the client's own AI mock** (Cold Air 4 U E03, 2026-10-21;
+    Arthur: "faltou personalidade pro site ... gostei mais do site que a menina fez ... faltou cor, ficou muito com cara
+    de site outdated ... não parece que teve tempo e esforço dedicado"). Cause: the three hero directions varied only the
+    composition; all shared one muted language (cream canvas, navy, dark forest green, condensed signage type, squared
+    bar) taken from a calm architectural photo style, and the ★ was never put beside the mock Arthur had already seen.
+    Rule: hero directions vary the visual language (palette intensity, type family, signature device), use the logo's
+    own colours boldly, and must clearly beat any mock or site the client has; a calm image style does not mean a muted
+    site. Check: the ★ first screen beside the client's mock/current site at 1534x692 and 390 before the style guide is
+    built; if it is not clearly more alive and current, redo the direction.
+
+17. **Too many colours and too many button colours: the hierarchy read as a mess** (Cold Air 4 U E04, 2026-10-21;
+    Arthur on the published guide: "achei meio confuso de assimilar as coisas porque a hierarquia visual está meio
+    bagunçada, principalmente por causa das 500 cores diferentes e 500 cores de cta diferentes"). Cause: the fix for #16
+    ("use the logo's colours boldly") was read as "use every colour everywhere": Sunshine put sun yellow on the top line,
+    the nav capsule, icon discs, step numbers, ticket stubs, FAQ toggles, play buttons, social icons and the footer;
+    the service labels were lime / sun / blue / white in turn, so they read as four kinds of button; Clean's buttons
+    were blue on the page and lime on the bands; lime also painted markers, dots and an offset block. Two luminous
+    neighbours (yellow and lime) fought on every screen and the eye could not find the action. Rule: colour = meaning.
+    ONE action colour fills every primary button in every look and nothing else (no marker, icon, dot, line, block or
+    band); secondary actions are outlines in their ground's text colour; the brand family (one hue, its tints and
+    shades) carries structure, icons, numbers, discs and links; a third, signature colour (if any) lives on the
+    signature device only; everything else is neutral. Bold = big areas of one or two colours, not many hues.
+    Check: `node tools/colour-roles.mjs <base> <routes> --tokens <tokens.css>` (FAIL: more than one button fill, or the
+    action colour off the actions; WARN: more than 3 hue families), then look at the whole page at 1534x692 asking
+    "where is the action on this screen?".
+
+## First screen
+
+18. **The hero text slid under the nav and the booking bar in a 1100x650 window** (Cold Air 4 U E04, 2026-10-21;
+    Arthur's screenshot of the published guide in the artifact panel: "ficou bugado"). Cause: the Sunshine desktop hero
+    had a fixed `height` (a clamp of 100svh) and a `minmax(0, 1fr)` text row with the block centred; from 1024 to
+    1279px the Call pill wrapped under the mini-card, the text outgrew the row and overflowed both ways (the H1's first
+    line under the sticky nav, the Call pill under the bar). Every check ran at 1534x692 and 390 only; a review panel
+    or a small laptop window is narrower and shorter. Rule: a first-screen panel's height is a floor (`min-height`),
+    never a cap, and its text row is content-sized (`1fr`, never `minmax(0, 1fr)`); where a breakpoint changes the
+    layout, controls meant to share a row are sized so they still do. Check: `node tools/first-screen-fit.mjs <base>
+    <routes> --card "<overlapping card>"` (18 sizes incl. 1100x650, 1024x600, 1280x600, 1366x620; FAIL when the
+    headline, sub-line or actions touch the sticky chrome or the card).

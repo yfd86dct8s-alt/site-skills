@@ -42,6 +42,12 @@ about the visitor's problem, not an intake form.
 - Success: what happens next, who contacts them, in what window, and a non-form route (call). Promise
   only a window the client will meet (ties to the proof ledger). No fake demo submit in builds: with no
   endpoint connected the form shows a "not connected" state in dev, never a pretend success.
+- Confirmation email (every site, every form with an email field): subject "We received your <request /
+  message / application> | <Brand>"; "Hi <first name>," (letters-only name, else "Hello,"); one line that
+  thanks and says who replies and how; the thank-you page's "What happens next" steps verbatim; the phone
+  as the faster route; brand + domain; "This is an automatic confirmation. To add anything to your request,
+  just reply to this email." No new promises (same window as the page, or none), no echo of what they typed,
+  no marketing. Reference: GEMCAP `lead.php` `gem_autoreply_compose`.
 - Trust near the submit: privacy line that is true ("We use your details only to answer this request"),
   the response window if real, the phone number as an alternative, a real review/credential only if it is
   in the ledger. No security badges that are not real. Do not promise a lead-deletion period

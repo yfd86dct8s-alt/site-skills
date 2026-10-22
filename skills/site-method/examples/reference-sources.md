@@ -23,16 +23,17 @@ validated).
 
 | folder | holds | status |
 |---|---|---|
-| `hero/` | first-screen sections | empty (the 2026-10-12 set was removed) |
-| `nav/` | headers, menus, mobile sheets, sticky bars | empty |
-| `cards/` | situation/practice cards, doors, router tiles | empty |
-| `proof/` | reviews, case results, credentials, numbers | empty |
-| `form/` | intake forms, multi-step, call/schedule widgets | empty |
-| `footer/` | footers and closing CTAs | empty |
-| `pages/` | whole-page structures (practice page, about, article) | empty |
+| `hero/` | first-screen sections | 6 catalog previews (Cold Air 4 U sweep 2026-10-20); see INDEX.md |
+| `nav/` | headers, menus, mobile sheets, sticky bars | 8 catalog previews (Cold Air 4 U sweep 2026-10-20) |
+| `cards/` | situation/practice cards, doors, router tiles, offer cards | 13 catalog previews (8 tiles + 5 offers; Cold Air 4 U sweep 2026-10-20) |
+| `proof/` | reviews, case results, credentials, numbers, social video | 16 catalog previews (credentials, reviews, social video; Cold Air 4 U sweep 2026-10-20) |
+| `form/` | intake forms, multi-step, call/schedule widgets | 7 catalog previews (Cold Air 4 U sweep 2026-10-20) |
+| `footer/` | footers and closing CTAs (incl. full-width CTA bands) | 11 catalog previews (5 CTA bands + 6 footers; Cold Air 4 U sweep 2026-10-20) |
+| `pages/` | whole-page structures and sections (practice page, about, article, founder/people, steps, FAQ) | 16 catalog previews (founder 6, steps 5, FAQ 5; Cold Air 4 U sweep 2026-10-20) |
 
 ## Naming
 
+- Catalog component previews (2026-10-20 sweep) are stored as `<slug>-desktop.webp` (component still or catalog preview-element shot, max 1600 px wide), not viewport captures; slug = `21st-<name>-<id>` or `<source>-<name>`.
 - `<slug>-desktop.png` (1534x692 CSS px at dpr 1.25) and `<slug>-phone.png` (414x896 at dpr 2). Slug = lower-case brand name with hyphens (`irwin-mitchell`); add a suffix only if one site gives several entries (`morgan-morgan-nav`).
 - Each folder has an `INDEX.md`: table of slug, URL, industry, pattern name, why it works, what to avoid, performance note. Starred rows (★) are the curated best.
 - Contact sheets `_sheet-N.jpg` (6 labelled desktop shots each) so a human can scan fast; `_phones-sheet-N.jpg` for phone views.

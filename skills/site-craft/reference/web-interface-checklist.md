@@ -54,6 +54,11 @@ Output: group by file, `file:line - issue`, terse, no preamble.
 
 ## Navigation
 - Links are real `<a>` (Cmd/Ctrl/middle-click work). Expanded panels/tabs reachable by URL when it helps sharing.
+- **External links always open in a new tab** (Arthur 2026-10-20: a link out must never replace our site in its tab):
+  every `<a href>` to another domain gets `target="_blank" rel="noopener"`: social icons, maps, partner/government
+  resources, a client's portal or ATS. Internal links, `tel:` and `mailto:` stay in the tab. Text links say it to
+  screen readers (an external-link icon with a visually-hidden "(opens in a new tab)", or the aria-label of an
+  icon link). Check after every build: scan `dist/**/*.html` for `<a href="http...">` without `target="_blank"`: 0.
 
 ## Touch
 - `touch-action: manipulation`; tap highlight set intentionally; `overscroll-behavior: contain` in sheets.

@@ -131,8 +131,9 @@ Format: id name - fit - override. **NOT USED** = conflicts with a rule; the rule
 - **N3 Side rail** - long editorial/portfolio pages, desktop only; phones get a top bar + sheet.
 - **N4 Hidden behind cmd-K** - **NOT USED**: mobile is the base layer (mobile.md) and a phone has no cmd-K; every
   destination must be visible or one tap away.
-- **N5 Floating pill** - modern-minimal sites with a distinct hero surface under it. Our ported pill nav lives here;
-  Arthur wants it **tested against a non-pill nav in hero rounds** (a toggle), not assumed. Static blur only.
+- **N5 Floating pill** - modern-minimal sites with a distinct hero surface under it. Our ported pill nav lives here and
+  is the default on every site (Arthur 2026-10-21, after a plain fascia bar on Cold Air: "agora vi a navbar em pílula,
+  como nos outros websites, e tá melhor"); no non-pill toggle. Static blur only.
 - **N6 Newspaper masthead** - editorial, magazine, publishing only; costume on product sites.
 - **N7 Brutal slab** - loud, declarative brands (sport, manifesto). No blur, no round, no soft shadow with it.
 - **N8 Terminal command** - genuine CLI/dev-tool brands only (craft-floor: no monospace as costume).
