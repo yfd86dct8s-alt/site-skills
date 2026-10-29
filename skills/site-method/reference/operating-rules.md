@@ -142,9 +142,9 @@ registrada em `experimentos/REGISTRO.md`. Ver `experimentos/README.md`.
 - **Image direction first** — show 3-4 image styles (2 cheap samples each) before generating a site's image set
 - **Reference sweep arsenal** — phase 5 sweeps galleries into _metodologia/referencias/; proposals carry 2-3 alternatives
 - **Known mistakes ledger** — every bug Arthur catches -> site-craft known-mistakes.md (cause, rule, check) same day; run its checks before showing
-- **Site defaults for every site** — a request that fits every site becomes a site-method "Every site ships these" default the same day (confirmation email...)
+- **Site defaults for every site** — a request that fits every site becomes a site-method "Every site ships these" default the same day (confirmation email, CTM forms, thank-you conversions...)
 - **Proportional checks** — size checks to the change; CSS tweak = targeted shots + package diff vs live; bound delegated checks
-- **Token-cost levers** — spend = Opus subagents at 200k+ context; fresh-vs-resume + context ceiling (CONTINUE ~100 calls), no carries to 200k+ agents, small streams
+- **Token-cost levers** — spend = Opus subagents at 200k+; never resume a >200k agent after a quota stop (WIP commit + fresh); ceiling ~70 calls IN the dispatch prompt (2026-10-25 audit)
 - **Publish myself** — after "pode publicar" I run the deploy (cPanel publish.mjs, pushes); he doesn't run commands
 - **No prospecting, no meetings** — Arthur does no prospecting/client meetings (partners: unknown); skip sales/outreach/proposal tooling in scans
 - **Funnel architecture** — page goal first; every section names its funnel step + objection; Elevate v1 too long, v2 too short, v3 right
@@ -170,4 +170,11 @@ registrada em `experimentos/REGISTRO.md`. Ver `experimentos/README.md`.
 - **Artifact sub-page links** — never target=_blank to a sibling file in an artifact (frame URL blocked); publish it as its own artifact and link that
 - **Bold, current look** — colourful + personality, always pill, but colour = meaning: one action colour, few hues ("500 cores" = messy, Cold Air 2026-10-21)
 - **cPanel 2FA keys** — logins ask TOTP since 2026-10-21; keys in his "cPanel 2FA" sheet; GEMCAP + TMC keys stored (TMC 2026-10-22)
-- **Serena dashboard leak** — low RAM: first kill the Serena dashboard webview (8.8 GB after a week) + orphan greps; check parent chain before blaming his apps
+- **Serena removed** — Serena plugin disabled 2026-10-24 (dashboard RAM leak, unused); low RAM: check parent chains + orphans before blaming his apps
+- **Pasted images need a path** — use an image only via its "[Image: source: path]" line; none -> ask him to paste again in one line, no disk hunt
+- **No surprise costs** — every estimate lists every outside service + free limits; stay free by design; paid cap/plan only with his OK and the number
+- **Hub after 100%** — when E12 is done: run every parked item unasked, then click-guided in-hub tutorials (TMC team + clients)
+- **No lawyer** — TMC/Arthur have no lawyer: never gate on a lawyer sign-off; legal docs = factual records + open points as his business calls
+- **PC filter blocks fixtures** — antivirus learns exact PHP fixture text and blocks reads (EINVAL); per-run nonce in fixture text
+- **Arthur's TMC email** — arthur@marketingcartel.com since 2026-10-28; his hub owner login
+- **Keys in one place on the PC** — every key in C:/Users/PC GAMER/.tmc-private + INDEX.md; never delete PC copies after handover

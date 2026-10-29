@@ -30,6 +30,27 @@ php([...ini, '-S', `127.0.0.1:${PORT}`, join(here, 'router.php')], { GEMCAP_CONF
 php([...ini, '-S', `127.0.0.1:${PORT2}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir2, 'config.php') });
 php([...ini, '-S', `127.0.0.1:${PORT3}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir3, 'config.php') });
 php([...ini, '-S', `127.0.0.1:${PORT4}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir4, 'config.php') });
+// Turnstile: server 5 checks tokens against a local siteverify stub (tests/stub-siteverify.php), server 6 against a port where
+// nothing listens (Cloudflare unreachable), server 7 with Cloudflare's always-fail test secret (served by the stub too)
+const PORT5 = 8795, PORT6 = 8796, PORT7 = 8797, TS = 8798, DEAD = 8799;
+const tsOut = join(tmp, 'ts.jsonl'), cfgDir5 = join(tmp, 'cfg5'), cfgDir6 = join(tmp, 'cfg6'), cfgDir7 = join(tmp, 'cfg7');
+const tsCfg = (secret, url) => cfgPhp('test-key-local', STUB).replace(');', `,'TURNSTILE_SECRET'=>'${secret}','TURNSTILE_VERIFY_URL'=>'${url}');`);
+for (const [dir, c] of [[cfgDir5, tsCfg('ts-secret-local', `http://127.0.0.1:${TS}/siteverify`)], [cfgDir6, tsCfg('ts-secret-local', `http://127.0.0.1:${DEAD}/siteverify`)],
+  [cfgDir7, tsCfg('2x0000000000000000000000000000000AA', `http://127.0.0.1:${TS}/siteverify`)]]) { mkdirSync(dir); writeFileSync(join(dir, 'config.php'), c); }
+php(['-S', `127.0.0.1:${TS}`, join(here, 'stub-siteverify.php')], { TS_OUT: tsOut });
+php([...ini, '-S', `127.0.0.1:${PORT5}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir5, 'config.php') });
+php([...ini, '-S', `127.0.0.1:${PORT6}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir6, 'config.php') });
+php([...ini, '-S', `127.0.0.1:${PORT7}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir7, 'config.php') });
+// CallTrackingMetrics FormReactor: server 8 relays to a local CTM stub (tests/stub-ctm.php); servers 1-7 have no CTM_* keys.
+// Its config is rewritten between checks (lead.php reads it on every request).
+const PORT8 = 8800, CTM = 8801;
+const ctmOut = join(tmp, 'ctm.jsonl'), ctmMode = join(tmp, 'ctm-mode'), cfgDir8 = join(tmp, 'cfg8');
+const CTM_KEYS = { CTM_FORM_ID: 'FRT0123abcdEF', CTM_ACCESS_KEY: 'ctm-access-local', CTM_SECRET_KEY: 'ctm-secret-local', CTM_API_URL: `http://127.0.0.1:${CTM}/api/v1/formreactor/` };
+const cfg8 = (over = {}) => writeFileSync(join(cfgDir8, 'config.php'), cfgPhp('test-key-local', STUB).replace(');',
+  Object.entries({ ...CTM_KEYS, ...over }).map(([k, v]) => `,'${k}'=>${typeof v === 'boolean' ? v : `'${v}'`}`).join('') + ');'));
+mkdirSync(cfgDir8); cfg8(); writeFileSync(ctmMode, 'ok');
+php(['-S', `127.0.0.1:${CTM}`, join(here, 'stub-ctm.php')], { CTM_OUT: ctmOut, CTM_MODE: ctmMode });
+php([...ini, '-S', `127.0.0.1:${PORT8}`, join(here, 'router.php')], { GEMCAP_CONFIG: join(cfgDir8, 'config.php') });
 await new Promise(r => setTimeout(r, 1500));
 
 let pass = 0, fail = 0;
@@ -222,6 +243,218 @@ ok(r.j?.ok && acks().length === a0, 'autoreply: no email address -> no confirmat
     "foreach (array('172.70.1.2','104.23.9.9','2606:4700:10::1','131.0.75.1','1.2.3.4','172.63.255.255','2001:db8::1','not-an-ip') as $ip) echo $ip, '=', gem_from_cloudflare($ip) ? 1 : 0, ' ';");
   const o = await new Promise(res => { const p = spawn('php', [f]); let s = ''; p.stdout.on('data', d => s += d); p.on('close', () => res(s.trim())); });
   ok(o === '172.70.1.2=1 104.23.9.9=1 2606:4700:10::1=1 131.0.75.1=1 1.2.3.4=0 172.63.255.255=0 2001:db8::1=0 not-an-ip=0', 'Cloudflare ranges: edges recognised, others not', o);
+}
+
+// Cloudflare Turnstile (servers 5-7; server 1 has no TURNSTILE_SECRET)
+{
+  const U5 = `http://127.0.0.1:${PORT5}/api/lead`, U6 = `http://127.0.0.1:${PORT6}/api/lead`, U7 = `http://127.0.0.1:${PORT7}/api/lead`;
+  const tsLines = () => existsSync(tsOut) ? readFileSync(tsOut, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : [];
+  const relay = dir => { try { return readFileSync(join(dir, 'spool', 'relay.log'), 'utf8'); } catch { return ''; } };
+  const spoolText = dir => { try { return readdirSync(join(dir, 'spool')).filter(f => f.startsWith('leads-')).map(f => readFileSync(join(dir, 'spool', f), 'utf8')).join(''); } catch { return ''; } };
+  const who = n => ({ ...quote, fields: { ...quote.fields, name: n, email: n.toLowerCase().replace(/\W/g, '') + '@example.com' } });
+  const visitor = { 'X-Forwarded-For': '198.51.100.23' };
+
+  let n0 = stubLines().length, t0 = tsLines().length;
+  r = await json({ ...who('Tsgood One'), turnstile: 'good-4c1e9a' }, visitor, U5);
+  let sv = tsLines()[t0];
+  ok(r.status === 200 && r.j.ok && stubLines().length === n0 + 1, 'turnstile: accepted token -> 200, lead emailed', JSON.stringify(r.j));
+  ok(sv && sv.secret === 'ts-secret-local' && sv.response === 'good-4c1e9a' && sv.remoteip === '198.51.100.23', 'turnstile: siteverify gets secret, token and the rate limiter\'s visitor IP', JSON.stringify(sv));
+  ok(!JSON.stringify(stubLines().at(-1)).includes('good-4c1e9a') && !spoolText(cfgDir5).includes('good-4c1e9a'), 'turnstile: the token is neither emailed nor spooled');
+
+  n0 = stubLines().length;
+  r = await json({ ...who('Tsbad Two'), turnstile: 'bad-7f3a21' }, visitor, U5);
+  ok(r.status === 400 && r.j.ok === false && r.j.error === 'verify', 'turnstile: refused token -> 400 {error:verify}', r.status + JSON.stringify(r.j));
+  ok(stubLines().length === n0 && !spoolText(cfgDir5).includes('Tsbad Two'), 'turnstile: refused lead is not emailed and not spooled');
+  const log5 = relay(cfgDir5);
+  ok(/turnstile refused \(invalid-input-response\)/.test(log5) && !/bad-7f3a21|Tsbad|tsbadtwo|198\.51\.100\.23/.test(log5), 'turnstile: refusal logged in relay.log without token, IP or personal data', log5.split('\n').filter(l => /turnstile/.test(l)).join(' | '));
+
+  n0 = stubLines().length; t0 = tsLines().length;
+  r = await json(who('Tsnone Three'), visitor, U5);
+  ok(r.status === 400 && r.j.error === 'verify' && stubLines().length === n0 && tsLines().length === t0, 'turnstile: missing token -> 400 verify (siteverify not even called)', r.status + JSON.stringify(r.j));
+  r = await json({ ...who('Tshost Four'), turnstile: 'otherhost-1' }, visitor, U5);
+  ok(r.status === 400 && r.j.error === 'verify' && /turnstile refused \(hostname\)/.test(relay(cfgDir5)), 'turnstile: token solved on another hostname -> 400 verify', r.status + JSON.stringify(r.j));
+
+  n0 = stubLines().length;
+  r = await post(mp({ ...driverLead, turnstile: 'good-mp' }, 'cv.pdf', pdf), {}, U5);
+  ok(r.status === 200 && stubLines().length === n0 + 1 && tsLines().at(-1).response === 'good-mp', 'turnstile: driver multipart carries the token in the lead JSON -> 200', JSON.stringify(r.j));
+  r = await post(mp(driverLead, 'cv.pdf', pdf), {}, U5);
+  ok(r.status === 400 && r.j.error === 'verify', 'turnstile: driver multipart without a token -> 400 verify', r.status + JSON.stringify(r.j));
+
+  t0 = tsLines().length;
+  r = await json({ form: 'quote', partial: true, fields: { pickup: 'x' } }, {}, U5);
+  ok(r.status === 200 && r.j.partial === true && tsLines().length === t0, 'turnstile: partial step without a token -> 200 partial, not checked');
+  n0 = stubLines().length;
+  r = await json(contact, { 'X-Lead-Test': 'test-token-local' }, U5);
+  ok(r.status === 200 && stubLines().at(-1).body.to[0] === 'qa@example.test' && tsLines().length === t0, 'turnstile: X-Lead-Test request needs no token (not checked)', r.status + JSON.stringify(r.j));
+
+  for (const [tok, what] of [['nonjson-1', 'siteverify answers HTML'], ['internal-1', 'siteverify internal-error']]) {
+    n0 = stubLines().length;
+    r = await json({ ...who('Tsopen ' + tok), turnstile: tok }, visitor, U5);
+    ok(r.status === 200 && r.j.ok && stubLines().length === n0 + 1, `turnstile: ${what} -> fail open, lead accepted`, r.status + JSON.stringify(r.j));
+  }
+  ok((relay(cfgDir5).match(/turnstile unreachable/g) || []).length === 2, 'turnstile: each fail-open is logged "turnstile unreachable"');
+
+  n0 = stubLines().length;
+  r = await json({ ...who('Tsdown Five'), turnstile: 'good-x' }, visitor, U6);
+  ok(r.status === 200 && r.j.ok && stubLines().length === n0 + 1 && /turnstile unreachable/.test(relay(cfgDir6)), 'turnstile: siteverify down -> lead accepted + logged', r.status + JSON.stringify(r.j));
+
+  n0 = stubLines().length;
+  r = await json({ ...who('Tsfail Six'), turnstile: 'XXXX.DUMMY.TOKEN.XXXX' }, visitor, U7);
+  ok(r.status === 400 && r.j.error === 'verify' && stubLines().length === n0, 'turnstile: Cloudflare always-fail test secret -> 400 verify', r.status + JSON.stringify(r.j));
+
+  n0 = stubLines().length; t0 = tsLines().length;
+  r = await json(who('Tsoff Seven'));
+  ok(r.status === 200 && stubLines().length === n0 + 1 && tsLines().length === t0, 'turnstile: TURNSTILE_SECRET empty -> no token needed, siteverify never called', r.status + JSON.stringify(r.j));
+
+  n0 = stubLines().length;
+  const t1 = Date.now();
+  r = await json({ ...who('Tsslow Eight'), turnstile: 'slow-1' }, visitor, U5);
+  const took = Date.now() - t1;
+  ok(r.status === 200 && r.j.ok && stubLines().length === n0 + 1 && took < 6500 && (relay(cfgDir5).match(/turnstile unreachable/g) || []).length === 3,
+    `turnstile: siteverify slower than 5 s -> times out, lead accepted + logged (took ${took} ms)`, r.status + JSON.stringify(r.j));
+}
+
+// CallTrackingMetrics FormReactor (server 8 -> tests/stub-ctm.php; servers 1-7 have no CTM_* keys)
+{
+  const U8 = `http://127.0.0.1:${PORT8}/api/lead`;
+  const ctmLines = () => existsSync(ctmOut) ? readFileSync(ctmOut, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : [];
+  const relay = dir => { try { return readFileSync(join(dir, 'spool', 'relay.log'), 'utf8'); } catch { return ''; } };
+  const retry = () => { try { return readFileSync(join(cfgDir8, 'spool', 'ctm-retry.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch { return []; } };
+  const lastLead = dir => [...relay(dir).matchAll(/\+00:00 sent lead ([0-9a-f-]{36})/g)].at(-1)?.[1];
+  // without fastcgi_finish_request (php -S) the relay runs after the answer is flushed: wait for its log line
+  const until = async (fn, ms = 9000) => { const t = Date.now(); while (Date.now() - t < ms) { if (fn()) return true; await new Promise(r => setTimeout(r, 50)); } return !!fn(); };
+  const ctmLog = id => new RegExp('ctm (sent|FAILED|skipped)[^\\n]*' + id);
+  const settle = async dir => { const id = lastLead(dir); await until(() => ctmLog(id).test(relay(dir))); return id; };
+  const sid = 'abcDEF1234567890';
+  const qWith = (over = {}) => ({ ...quote, ctm_sid: sid, fields: { ...quote.fields, lp: 'ftl-nj', ...over } });
+
+  // off when unconfigured
+  r = await json({ ...quote, ctm_sid: sid });
+  ok(r.j?.ok && ctmLines().length === 0 && !/ctm/.test(relay(cfgDir)), 'ctm: no CTM_* keys (servers 1-7) -> no CTM call, no log line', String(ctmLines().length));
+  for (const [miss, label] of [['CTM_SECRET_KEY', 'secret'], ['CTM_ACCESS_KEY', 'access key'], ['CTM_FORM_ID', 'form id']]) {
+    cfg8({ [miss]: '' });
+    r = await json(qWith(), {}, U8);
+    await new Promise(res => setTimeout(res, 300));
+    ok(r.j?.ok && ctmLines().length === 0, `ctm: ${label} empty -> CTM off (no call), lead still emailed`, String(ctmLines().length));
+  }
+  ok(!/ctm/.test(relay(cfgDir8)), 'ctm: partly configured -> silent (no log line, no error)');
+  cfg8();
+
+  // quote: mapping, auth, endpoint
+  let n0 = stubLines().length;
+  r = await json(qWith(), {}, U8);
+  let id = await settle(cfgDir8);
+  let c = ctmLines().at(-1), b = c ? JSON.parse(c.raw) : {};
+  ok(r.status === 200 && r.j.ok && /^stub-/.test(r.j.id) && Object.keys(r.j).join() === 'ok,id' && stubLines().length === n0 + 1, 'ctm: quote -> same visitor answer {ok,id} + lead emailed', JSON.stringify(r.j));
+  ok(c && c.method === 'POST' && c.path === '/api/v1/formreactor/FRT0123abcdEF' && c.auth === 'Basic ' + Buffer.from('ctm-access-local:ctm-secret-local').toString('base64') && /^application\/json/.test(c.ctype || ''),
+    'ctm: POST /api/v1/formreactor/<CTM_FORM_ID>, HTTP Basic access:secret, JSON', JSON.stringify({ path: c?.path, ctype: c?.ctype }));
+  const wantQ = { phone_number: '5550102030', country_code: '1', caller_name: 'Jane "JD" Doe', email: 'jane@example.com', visitor_sid: sid, custom_form_type: 'quote',
+    custom_landing_page: 'ftl-nj', custom_sent_from_page: '/quote/', custom_request_summary: 'Full truckload · Newark, NJ to Atlanta, GA · ready 2026-11-03 · Dry van' };
+  ok(JSON.stringify(b) === JSON.stringify(wantQ), 'ctm: quote payload mapping (phone digits, name, email, sid, form type, lp, page, summary)', JSON.stringify(b));
+  ok(new RegExp('ctm sent lead ' + id + ' status 200').test(relay(cfgDir8)), 'ctm: success -> relay.log "ctm sent lead <id> status 200"');
+
+  // driver multipart: first + last name, driver summary, never the resume or sms_consent
+  r = await post(mp({ ...driverLead, ctm_sid: sid, fields: { ...driverLead.fields, state: 'FL', phone: '+1 (305) 555-0199' } }, 'cv.pdf', pdf), {}, U8);
+  await settle(cfgDir8);
+  c = ctmLines().at(-1); b = c ? JSON.parse(c.raw) : {};
+  ok(r.j?.ok && b.caller_name === 'Ann Lee' && b.phone_number === '3055550199' && b.custom_form_type === 'driver-prequal' && b.custom_request_summary === 'FL · 5 years · Owner operator' && b.custom_landing_page === 'cdl-drivers',
+    'ctm: driver -> first+last name, 11-digit +1 phone to 10 digits, state/experience/drive_as summary, lp', JSON.stringify(b));
+  ok(!/PDF|cv\.pdf|sms|consent|twic|resume/i.test(c.raw) && c.raw.length < 600, 'ctm: driver payload carries no resume, file name or sms_consent', c?.raw?.slice(0, 200));
+
+  // contact with and without a phone
+  r = await json({ ...contact, ctm_sid: sid, fields: { ...contact.fields, phone: '305 555 0100' } }, {}, U8);
+  await settle(cfgDir8);
+  b = JSON.parse(ctmLines().at(-1).raw);
+  ok(r.j?.ok && b.custom_form_type === 'contact' && b.caller_name === 'Sam' && b.custom_request_summary === 'Get a quote · Hello there' && !('custom_landing_page' in b), 'ctm: contact with phone -> topic + message summary', JSON.stringify(b));
+  let k0 = ctmLines().length;
+  r = await json({ ...contact, ctm_sid: sid }, {}, U8);
+  id = await settle(cfgDir8);
+  ok(r.j?.ok && ctmLines().length === k0 && new RegExp('ctm skipped: no phone, lead ' + id).test(relay(cfgDir8)), 'ctm: contact without phone -> skipped + logged "ctm skipped: no phone"', String(ctmLines().length - k0));
+  r = await json({ ...contact, fields: { ...contact.fields, phone: '555' } }, {}, U8);
+  await settle(cfgDir8);
+  ok(r.j?.ok && ctmLines().length === k0, 'ctm: phone that is not a US number -> skipped');
+  r = await json({ ...contact, fields: { ...contact.fields, phone: '3055550100', message: 'long '.repeat(400) } }, {}, U8);
+  await settle(cfgDir8);
+  b = JSON.parse(ctmLines().at(-1).raw);
+  ok([...b.custom_request_summary].length === 500, 'ctm: message over 500 chars -> summary capped at 500', String(b.custom_request_summary?.length));
+
+  // visitor_sid validation
+  for (const [v, want] of [['short7x', false], ['a'.repeat(65), false], ['bad sid!<x>', false], ['1234567890abcdef1234', true], [['x'], false]]) {
+    r = await json({ ...qWith(), ctm_sid: v }, {}, U8);
+    await settle(cfgDir8);
+    b = JSON.parse(ctmLines().at(-1).raw);
+    ok(want ? b.visitor_sid === v : !('visitor_sid' in b), `ctm: ctm_sid ${JSON.stringify(String(v).slice(0, 14))} -> ${want ? 'sent' : 'left out'}`, JSON.stringify(b.visitor_sid));
+  }
+
+  // test leads: skipped unless CTM_SEND_TESTS
+  k0 = ctmLines().length;
+  r = await json({ ...contact, fields: { ...contact.fields, phone: '3055550100' } }, { 'X-Lead-Test': 'test-token-local' }, U8);
+  await until(() => /ctm skipped: test lead/.test(relay(cfgDir8)));
+  ok(r.j?.ok && ctmLines().length === k0 && /ctm skipped: test lead/.test(relay(cfgDir8)), 'ctm: X-Lead-Test lead -> not sent to CTM (CTM_SEND_TESTS off)');
+  cfg8({ CTM_SEND_TESTS: 'false' });
+  r = await json({ ...contact, fields: { ...contact.fields, phone: '3055550100' } }, { 'X-Lead-Test': 'test-token-local' }, U8);
+  await new Promise(res => setTimeout(res, 300));
+  ok(ctmLines().length === k0, "ctm: CTM_SEND_TESTS 'false' (string, as set-config writes it) is off");
+  cfg8({ CTM_SEND_TESTS: true });
+  r = await json({ ...contact, fields: { ...contact.fields, phone: '3055550100' } }, { 'X-Lead-Test': 'test-token-local' }, U8);
+  await until(() => ctmLines().length === k0 + 1);
+  ok(r.j?.ok && ctmLines().length === k0 + 1 && JSON.parse(ctmLines().at(-1).raw).caller_name === '[TEST] Sam', 'ctm: CTM_SEND_TESTS true -> test lead sent, name marked [TEST]');
+  cfg8();
+
+  // failures: the visitor's answer and the email are unchanged, the id goes to ctm-retry.jsonl, the log has the status only
+  for (const [m, want, over] of [['fail', 500, {}], ['error', 200, {}], ['ok', 0, { CTM_API_URL: `http://127.0.0.1:${DEAD}/api/v1/formreactor/` }]]) {
+    writeFileSync(ctmMode, m); cfg8(over);
+    n0 = stubLines().length; const r0 = retry().length;
+    r = await json(qWith({ name: 'Ctmfail ' + m }), {}, U8);
+    id = await settle(cfgDir8);
+    const em = stubLines().at(-1)?.body;
+    ok(r.status === 200 && Object.keys(r.j).join() === 'ok,id' && /^stub-/.test(r.j.id) && stubLines().length === n0 + 1 && em.subject === `Quote request: Ctmfail ${m} (O'Brien & Sons)`,
+      `ctm: ${over.CTM_API_URL ? 'CTM unreachable' : 'CTM answers ' + m} -> visitor answer + email unchanged`, JSON.stringify(r.j));
+    const rt = retry().at(-1);
+    ok(retry().length === r0 + 1 && rt.id === id && Object.keys(rt).join() === 'id,at,status' && rt.status === want && new RegExp('ctm FAILED lead ' + id + ' status ' + want).test(relay(cfgDir8)),
+      `ctm: ${m}${over.CTM_API_URL ? ' (down)' : ''} -> relay.log "ctm FAILED ... status ${want}" + lead id in ctm-retry.jsonl`, JSON.stringify(rt));
+  }
+  writeFileSync(ctmMode, 'ok'); cfg8();
+
+  // Resend down (queued) is an accepted lead too: CTM still gets it
+  writeFileSync(mode, 'fail');
+  k0 = ctmLines().length;
+  r = await json(qWith({ name: 'Ctm queued' }), {}, U8);
+  await until(() => ctmLines().length === k0 + 1);
+  ok(r.j?.ok && r.j.queued === true && Object.keys(r.j).join() === 'ok,queued,id' && JSON.parse(ctmLines().at(-1).raw).caller_name === 'Ctm queued', 'ctm: Resend down -> answer still {ok,queued,id}, lead sent to CTM after it');
+  await until(() => /ctm sent lead [^\n]*\n$/.test(relay(cfgDir8)));
+  writeFileSync(mode, 'ok');
+
+  // no keys or personal data in the logs
+  const logs = relay(cfgDir8) + (existsSync(join(cfgDir8, 'spool', 'php-errors.log')) ? readFileSync(join(cfgDir8, 'spool', 'php-errors.log'), 'utf8') : '') + JSON.stringify(retry());
+  ok(!/ctm-secret-local|ctm-access-local|Y3RtLWFj|Jane|jane@|5550102030|3055550|Newark|Ann Lee|Sam\b|abcDEF1234567890|Ctmfail|FRT0123/.test(logs), 'ctm: relay.log / php-errors.log / ctm-retry hold no key, form id, sid or lead data',
+    (logs.match(/.*(ctm-secret|Jane|Newark|abcDEF|FRT0123).*/) || [''])[0].slice(0, 160));
+  ok(!existsSync(join(cfgDir8, 'spool', 'php-errors.log')), 'ctm: no PHP warnings on any CTM path');
+
+  // CTM_API_URL is honoured only for http://127.0.0.1 (else CTM's real URL); CTM_FORM_ID must look like an id
+  {
+    const src = readFileSync(join(root, 'public_html/api/lead.php'), 'utf8');
+    const f = join(tmp, 'ctmurl.php');
+    writeFileSync(f, '<?php\n' + src.match(/const GEM_CTM_URL = .*?;/)[0] + '\n' + src.match(/function gem_ctm_url\(.*?\n}\n/s)[0] +
+      "foreach (array(array('http://127.0.0.1:9/api/v1/formreactor/', 'FRT1'), array('http://127.0.0.1/x', 'FRT1'), array('http://localhost:9/', 'FRT1'), array('https://evil.example/', 'FRT1'), array('http://127.0.0.1.evil.example/', 'FRT1'), array('', 'FRT1'), array('', '../x'), array('', 'a b'), array('', 'FRT' . str_repeat('A1', 32))) as $c) echo gem_ctm_url(array('CTM_API_URL' => $c[0], 'CTM_FORM_ID' => $c[1])), '|';");
+    const o = await new Promise(res => { const p = spawn('php', [f]); let s = ''; p.stdout.on('data', d => s += d); p.on('close', () => res(s.trim())); });
+    const real = 'https://api.calltrackingmetrics.com/api/v1/formreactor/FRT1';
+    ok(o === ['http://127.0.0.1:9/api/v1/formreactor/FRT1', 'http://127.0.0.1/x/FRT1', real, real, real, real, '', '', 'https://api.calltrackingmetrics.com/api/v1/formreactor/FRT' + 'A1'.repeat(32)].join('|') + '|', 'ctm: CTM_API_URL override only for http://127.0.0.1; form id validated', o);
+  }
+
+  // forms.js sends ctm_sid at the top level: the email (and lead.js parity) is unchanged by it
+  await parity('quote JSON + ctm_sid', { ...quote, ctm_sid: sid });
+
+  // CTM slower than 6 s: the call is cut off, the lead is safe, the next visitor is not stuck behind it for long
+  writeFileSync(ctmMode, 'slow');
+  const t1 = Date.now();
+  r = await json(qWith({ name: 'Ctm slow' }), {}, U8);
+  const answered = Date.now() - t1;
+  id = await settle(cfgDir8);
+  const total = Date.now() - t1;
+  ok(r.j?.ok && answered < 7000 && total < 8000 && new RegExp('ctm FAILED lead ' + id + ' status 0').test(relay(cfgDir8)) && retry().at(-1).id === id,
+    `ctm: CTM slower than 6 s -> timed out, logged + retry (answer after ${answered} ms, relay done after ${total} ms)`, r.status + JSON.stringify(r.j));
+  writeFileSync(ctmMode, 'ok');
 }
 
 for (const p of procs) p.kill();

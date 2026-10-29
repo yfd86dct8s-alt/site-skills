@@ -12,9 +12,13 @@
 //   - Per-IP limit: RATE_PER_HOUR (default 30) real leads per IP per hour, else 429 {ok:false,error:'rate'} (logged, never silent).
 //   - Multi-line subject/name values are collapsed to one line.
 //   - A test request (X-Lead-Test) with no valid TEST_TO is refused (503) instead of falling back to the real inbox.
+//   - Cloudflare Turnstile (when TURNSTILE_SECRET is set): every final submit must carry a token siteverify accepts, else
+//     400 {ok:false,error:'verify'}. Fails open when siteverify cannot be reached (see gem_turnstile).
+//   - CallTrackingMetrics (when CTM_FORM_ID + CTM_ACCESS_KEY + CTM_SECRET_KEY are set): after the email, each accepted lead
+//     with a US phone is also POSTed to the CTM FormReactor, after the visitor's answer is flushed (see gem_ctm).
 //
 // Config: NOT in this folder. ~/gemcap-config/config.php (two levels above public_html/api/), see config.example.php.
-// Keys: RESEND_API_KEY, LEAD_TO, LEAD_FROM, TEST_TOKEN, TEST_TO (+ optional RESEND_API_URL, SPOOL_DIR).
+// Keys: RESEND_API_KEY, LEAD_TO, LEAD_FROM, TEST_TOKEN, TEST_TO (+ optional RESEND_API_URL, SPOOL_DIR, TURNSTILE_SECRET, CTM_*).
 // Partial leads (quote step 1, no contact details yet) are acknowledged and not emailed or spooled.
 // PHP 7.4+ / 8.x. No mbstring needed. Nothing here ever prints an error, a path or a key to a visitor.
 
@@ -96,10 +100,14 @@ function gem_config() {
     'RESEND_API_KEY' => '', 'LEAD_TO' => GEM_DEFAULT_TO, 'LEAD_FROM' => GEM_DEFAULT_FROM, 'TEST_TOKEN' => '', 'TEST_TO' => '',
     'RESEND_API_URL' => 'https://api.resend.com/emails', 'SPOOL_DIR' => dirname($file) . '/spool', 'RATE_PER_HOUR' => 30, 'TRUST_PROXY_HEADERS' => false,
     'AUTOREPLY' => true, 'AUTOREPLY_FROM' => GEM_DEFAULT_AUTOREPLY_FROM, 'AUTOREPLY_REPLY_TO' => '', 'AUTOREPLY_PER_DAY' => 30,
+    'TURNSTILE_SECRET' => '', 'TURNSTILE_VERIFY_URL' => 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+    'CTM_FORM_ID' => '', 'CTM_ACCESS_KEY' => '', 'CTM_SECRET_KEY' => '', 'CTM_SEND_TESTS' => false, 'CTM_API_URL' => '',
   ), $c);
   $c['TRUST_PROXY_HEADERS'] = !empty($c['TRUST_PROXY_HEADERS']);
   $c['AUTOREPLY'] = !empty($c['AUTOREPLY']);
-  foreach (array('RESEND_API_KEY', 'LEAD_TO', 'LEAD_FROM', 'TEST_TOKEN', 'TEST_TO', 'RESEND_API_URL', 'SPOOL_DIR', 'RATE_PER_HOUR', 'AUTOREPLY_FROM', 'AUTOREPLY_REPLY_TO') as $k) {
+  // set-config.mjs writes every value as a string: 'false' / '0' / '' must mean off
+  $c['CTM_SEND_TESTS'] = $c['CTM_SEND_TESTS'] === true || in_array(strtolower(trim(gem_str($c['CTM_SEND_TESTS']))), array('1', 'true', 'yes', 'on'), true);
+  foreach (array('RESEND_API_KEY', 'LEAD_TO', 'LEAD_FROM', 'TEST_TOKEN', 'TEST_TO', 'RESEND_API_URL', 'SPOOL_DIR', 'RATE_PER_HOUR', 'AUTOREPLY_FROM', 'AUTOREPLY_REPLY_TO', 'TURNSTILE_SECRET', 'TURNSTILE_VERIFY_URL', 'CTM_FORM_ID', 'CTM_ACCESS_KEY', 'CTM_SECRET_KEY', 'CTM_API_URL') as $k) {
     if (is_array($c[$k])) $c[$k] = implode(',', $c[$k]);   // LEAD_TO / TEST_TO may be written as an array
     $c[$k] = trim((string)$c[$k]);
   }
@@ -154,13 +162,22 @@ function gem_uuid() {
 }
 
 // ---- responses (never cached: Cache-Control for browsers, X-Accel-Expires for the NGINX proxy cache in front of Apache) ---------
-function gem_respond($status, $data) {
+// $after (optional): work done once the answer has left (the CTM relay). The visitor's answer is the same either way.
+function gem_respond($status, $data, $after = null) {
   http_response_code($status);
   header('Content-Type: application/json');
   header('Cache-Control: no-store');
   header('Pragma: no-cache');
   header('X-Accel-Expires: 0');
-  echo json_encode($data);
+  $out = json_encode($data);
+  if (!is_callable($after)) { echo $out; exit; }
+  ignore_user_abort(true);
+  header('Content-Length: ' . strlen($out));
+  echo $out;
+  if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();        // PHP-FPM: the visitor is answered now
+  elseif (function_exists('litespeed_finish_request')) litespeed_finish_request();
+  else { while (ob_get_level() > 0) @ob_end_flush(); flush(); }                    // else inline, bounded by short timeouts
+  $after();
   exit;
 }
 function gem_ini_bytes($v) {
@@ -193,17 +210,21 @@ function gem_from_cloudflare($ip) {
   foreach (GEM_CF_RANGES as $r) if (gem_in_cidr($ip, $r)) return true;
   return false;
 }
-function gem_client_key() {
+// The visitor's address as the rules above pick it ('' if none is valid). Also sent to Turnstile's siteverify (remoteip).
+function gem_client_ip() {
   $cfg = gem_config();
-  $ip = '';
   $remote = (string)($_SERVER['REMOTE_ADDR'] ?? '');
   $hdrs = ($cfg && $cfg['TRUST_PROXY_HEADERS']) ? array('HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
     : (gem_from_cloudflare($remote) ? array('HTTP_CF_CONNECTING_IP', 'REMOTE_ADDR') : array('REMOTE_ADDR'));
   foreach ($hdrs as $h) {
     if (empty($_SERVER[$h])) continue;
     $c = trim(explode(',', (string)$_SERVER[$h])[0]);
-    if (filter_var($c, FILTER_VALIDATE_IP)) { $ip = $c; break; }
+    if (filter_var($c, FILTER_VALIDATE_IP)) return $c;
   }
+  return '';
+}
+function gem_client_key() {
+  $ip = gem_client_ip();
   $bin = $ip !== '' ? @inet_pton($ip) : false;
   if ($bin !== false && strlen($bin) === 16) $ip = bin2hex(substr($bin, 0, 8)) . '/64';
   return sha1('gemcap|' . ($ip !== '' ? $ip : 'unknown'));
@@ -236,6 +257,27 @@ function gem_rate_hit($cfg, $dir) {
 // ---- Resend ----------------------------------------------------------------------------------------------------------------
 // https only; plain http only to a loopback stub (the local tests)
 function gem_url_ok($url) { return preg_match('#^https://#i', $url) || preg_match('#^http://(127\.0\.0\.1|localhost)(:\d+)?/#i', $url); }
+// One POST (cURL, else streams). Returns array(http status, body | false, short error text).
+function gem_post($url, $content, $headers, $connect, $timeout) {
+  $status = 0;
+  if (function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, array(CURLOPT_POST => true, CURLOPT_POSTFIELDS => $content, CURLOPT_HTTPHEADER => $headers,
+      CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => $connect, CURLOPT_TIMEOUT => $timeout, CURLOPT_FOLLOWLOCATION => false));
+    $resp = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    if ($resp === false) return array(0, false, 'curl: ' . substr($err, 0, 120));
+  } else {
+    $ctx = stream_context_create(array('http' => array('method' => 'POST', 'header' => implode("\r\n", $headers), 'content' => $content,
+      'timeout' => $timeout, 'ignore_errors' => true, 'follow_location' => 0)));
+    $resp = @file_get_contents($url, false, $ctx);
+    if (isset($http_response_header[0]) && preg_match('#\s(\d{3})\s#', $http_response_header[0] . ' ', $m)) $status = (int)$m[1];
+    if ($resp === false) return array($status, false, 'stream request failed');
+  }
+  return array($status, $resp, '');
+}
 // POST the message. Returns array(ok, http status, resend id | short error text). The key is never logged.
 function gem_resend($cfg, $body, $idemKey) {
   $url = $cfg['RESEND_API_URL'];
@@ -243,27 +285,49 @@ function gem_resend($cfg, $body, $idemKey) {
   $json = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
   if ($json === false) return array(false, 0, 'json encode failed');
   $headers = array('Authorization: Bearer ' . $cfg['RESEND_API_KEY'], 'Content-Type: application/json', 'Idempotency-Key: ' . $idemKey, 'User-Agent: gemcap-cpanel-lead/1');
-  $status = 0;
-  if (function_exists('curl_init')) {
-    $ch = curl_init($url);
-    curl_setopt_array($ch, array(CURLOPT_POST => true, CURLOPT_POSTFIELDS => $json, CURLOPT_HTTPHEADER => $headers,
-      CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_TIMEOUT => 15, CURLOPT_FOLLOWLOCATION => false));
-    $resp = curl_exec($ch);
-    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    if ($resp === false) return array(false, 0, 'curl: ' . substr($err, 0, 120));
-  } else {
-    $ctx = stream_context_create(array('http' => array('method' => 'POST', 'header' => implode("\r\n", $headers), 'content' => $json,
-      'timeout' => 15, 'ignore_errors' => true, 'follow_location' => 0)));
-    $resp = @file_get_contents($url, false, $ctx);
-    if (isset($http_response_header[0]) && preg_match('#\s(\d{3})\s#', $http_response_header[0] . ' ', $m)) $status = (int)$m[1];
-    if ($resp === false) return array(false, $status, 'stream request failed');
-  }
+  list($status, $resp, $err) = gem_post($url, $json, $headers, 6, 15);
+  if ($resp === false) return array(false, $status, $err);
   $j = json_decode((string)$resp, true);
   if ($status >= 200 && $status < 300 && is_array($j) && isset($j['id'])) return array(true, $status, (string)$j['id']);
   $msg = is_array($j) && isset($j['message']) ? (string)$j['message'] : 'http ' . $status;
   return array(false, $status, substr(gem_one_line($msg), 0, 160));
+}
+
+// ---- Cloudflare Turnstile (the forms' bot check, on when TURNSTILE_SECRET is set) -------------------------------------------
+// The final submit of each form carries `turnstile` (the widget's token; in the multipart `lead` JSON for the driver form).
+// Partial steps and X-Lead-Test requests are never checked. siteverify gets the secret, the token and the visitor IP
+// (gem_client_ip: the visitor the rate limit counts). Returns array(verdict, reason): verdict 'ok', 'refused' (no token,
+// Cloudflare said no, or another hostname) or 'unreachable' (cannot be reached, 5 s timeout, not JSON, or an error on OUR
+// side: our secret refused, Cloudflare's internal error). 'unreachable' lets the lead through: a lead is never lost to our
+// own dependency. Cloudflare's test secrets (1x/2x/3x000...AA) answer hostname "example.com": no hostname check for them.
+// Reasons are Cloudflare's error codes or a status, never the token.
+const GEM_TS_OURS = array('internal-error', 'invalid-input-secret', 'missing-input-secret');
+function gem_turnstile($cfg, $token) {
+  $token = is_string($token) ? trim($token) : '';
+  if ($token === '') return array('refused', 'no token');
+  if (strlen($token) > 2048) return array('refused', 'token too long');
+  $url = $cfg['TURNSTILE_VERIFY_URL'];
+  if (!gem_url_ok($url)) return array('unreachable', 'bad url (https only)');
+  $q = array('secret' => $cfg['TURNSTILE_SECRET'], 'response' => $token);
+  $ip = gem_client_ip();
+  if ($ip !== '') $q['remoteip'] = $ip;
+  list($status, $resp, $err) = gem_post($url, http_build_query($q), array('Content-Type: application/x-www-form-urlencoded', 'User-Agent: gemcap-cpanel-lead/1'), 3, 5);
+  if ($resp === false) return array('unreachable', $err);
+  $j = json_decode((string)$resp, true);
+  if (!is_array($j) || !array_key_exists('success', $j)) return array('unreachable', 'not json (http ' . $status . ')');
+  $codes = isset($j['error-codes']) && is_array($j['error-codes']) ? array_values(array_filter($j['error-codes'], 'is_string')) : array();
+  $codeText = substr(preg_replace('/[^a-z0-9,-]/', '', strtolower(implode(',', $codes))), 0, 120);
+  if ($j['success'] !== true) {
+    if (array_intersect($codes, GEM_TS_OURS)) return array('unreachable', $codeText);
+    return array('refused', $codeText !== '' ? $codeText : 'success false');
+  }
+  if (!preg_match('/^[123]x0{20,}[A-Za-z]{2}$/', $cfg['TURNSTILE_SECRET'])) {
+    $host = strtolower(gem_str($j['hostname'] ?? ''));
+    $ok = false;
+    foreach (GEM_ALLOWED_HOSTS as $re) if (preg_match($re, $host)) { $ok = true; break; }
+    if (!$ok) return array('refused', 'hostname');
+  }
+  return array('ok', 'ok');
 }
 
 // ---- the email (same layout, labels, subject and attribution lines as lead.js) ---------------------------------------------
@@ -418,6 +482,94 @@ function gem_autoreply($cfg, $form, $f, $email, $test, $id) {
   gem_log('relay', ($r[0] ? 'autoreply sent' : 'autoreply FAILED (' . $r[1] . ' ' . $r[2] . ')') . ' lead ' . $id . ($test ? ' (test)' : '') . ($r[0] ? ' resend ' . $r[2] : ''));
 }
 
+// ---- CallTrackingMetrics FormReactor (ready to connect: off until CTM_FORM_ID, CTM_ACCESS_KEY and CTM_SECRET_KEY are set) ----
+// The client's CTM shows calls; this puts each accepted form lead next to them, tied to the visitor's CTM session (ctm_sid,
+// sent by forms.js from CTM's own tracker) so CTM credits the lead's source. Runs only AFTER the lead email (the email and the
+// visitor's answer are first and authoritative), after the answer is flushed when the server allows it. Request:
+//   POST https://api.calltrackingmetrics.com/api/v1/formreactor/<CTM_FORM_ID>, HTTP Basic CTM_ACCESS_KEY:CTM_SECRET_KEY,
+//   JSON {phone_number (10 digits), country_code "1", caller_name, email, visitor_sid, custom_<snake label>...}.
+// Custom fields (created on the FormReactor with these labels): Form Type, Landing Page, Sent From Page, Request Summary.
+// Never sent: the resume, notes/message beyond the 500-character summary, sms_consent, the Turnstile token.
+// A lead with no usable US phone is skipped (FormReactor requires phone_number); test leads only with CTM_SEND_TESTS.
+// Any failure: one relay.log line with the status only + the lead id in spool/ctm-retry.jsonl. Never keys or lead data in logs.
+const GEM_CTM_URL = 'https://api.calltrackingmetrics.com/api/v1/formreactor/';
+function gem_ctm_on($cfg) { return $cfg && $cfg['CTM_FORM_ID'] !== '' && $cfg['CTM_ACCESS_KEY'] !== '' && $cfg['CTM_SECRET_KEY'] !== ''; }
+// CTM_API_URL (a base ending in /) is honoured only for a loopback stub (the local tests); anything else -> CTM's real URL
+function gem_ctm_url($cfg) {
+  $base = GEM_CTM_URL;
+  if ($cfg['CTM_API_URL'] !== '' && preg_match('#^http://127\.0\.0\.1(:\d+)?/#', $cfg['CTM_API_URL'])) $base = rtrim($cfg['CTM_API_URL'], '/') . '/';
+  return preg_match('/^[A-Za-z0-9_-]{1,128}$/', $cfg['CTM_FORM_ID']) ? $base . $cfg['CTM_FORM_ID'] : '';
+}
+// first $n characters, UTF-8 safe with or without mbstring
+function gem_ctm_cut($s, $n) {
+  if (function_exists('mb_substr')) return mb_substr($s, 0, $n, 'UTF-8');
+  return preg_match('/^.{0,' . (int)$n . '}/su', $s, $m) ? $m[0] : substr($s, 0, $n);
+}
+// a US number as 10 digits (a leading 1 dropped), else ''
+function gem_ctm_phone($v) {
+  $d = preg_replace('/\D+/', '', gem_str($v));
+  if (strlen($d) === 11 && $d[0] === '1') $d = substr($d, 1);
+  return preg_match('/^[2-9]\d{9}$/', $d) ? $d : '';
+}
+// null when there is no usable phone; else the FormReactor fields (empty ones left out)
+function gem_ctm_payload($form, $f, $email, $lead, $test) {
+  $g = function ($k) use ($f) { return isset($f[$k]) ? gem_one_line($f[$k]) : ''; };
+  $phone = gem_ctm_phone($g('phone'));
+  if ($phone === '' && $form === 'driver-prequal') $phone = gem_ctm_phone($g('home_phone'));
+  if ($phone === '') return null;
+  $name = $form === 'driver-prequal' ? trim($g('first_name') . ' ' . $g('last_name')) : $g('name');
+  $join = function ($parts) { return implode(' · ', array_values(array_filter($parts, 'strlen'))); };
+  if ($form === 'quote') {
+    $pu = $g('pickup'); $de = $g('delivery');
+    $lane = $pu !== '' && $de !== '' ? $pu . ' to ' . $de : ($pu !== '' ? 'from ' . $pu : ($de !== '' ? 'to ' . $de : ''));
+    $sum = $join(array($g('need') !== '' ? gem_nice($g('need')) : '', $lane, $g('ready') !== '' ? 'ready ' . $g('ready') : '', $g('equipment') !== '' ? gem_nice($g('equipment')) : ''));
+  } elseif ($form === 'driver-prequal') {
+    $sum = $join(array($g('state'), $g('experience'), $g('drive_as') !== '' ? gem_nice($g('drive_as')) : ''));
+  } else {
+    $sum = $join(array($g('topic') !== '' ? gem_nice($g('topic')) : '', $g('message')));
+  }
+  $sid = gem_str($lead['ctm_sid'] ?? '');
+  $p = array(
+    'phone_number' => $phone, 'country_code' => '1',
+    'caller_name' => $name !== '' ? ($test ? '[TEST] ' : '') . gem_ctm_cut($name, 100) : '',
+    'email' => $email !== '' && gem_valid_email($email) ? $email : '',
+    'visitor_sid' => preg_match('/^[A-Za-z0-9]{8,64}$/', $sid) ? $sid : '',
+    'custom_form_type' => $form,
+    'custom_landing_page' => gem_ctm_cut($g('lp'), 100),
+    'custom_sent_from_page' => gem_ctm_cut(gem_one_line(gem_clean(isset($lead['page']) ? $lead['page'] : '')), 200),
+    'custom_request_summary' => gem_ctm_cut($sum, 500),
+  );
+  return array_filter($p, 'strlen');
+}
+// array(ok, http status). 2xx is success unless the body says {"status":"error"} or carries "error".
+function gem_ctm_post($cfg, $url, $payload) {
+  $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+  if ($json === false) return array(false, 0);
+  $headers = array('Authorization: Basic ' . base64_encode($cfg['CTM_ACCESS_KEY'] . ':' . $cfg['CTM_SECRET_KEY']), 'Content-Type: application/json',
+    'Accept: application/json', 'User-Agent: gemcap-cpanel-lead/1');
+  list($status, $resp) = gem_post($url, $json, $headers, 3, 6);
+  if ($resp === false || $status < 200 || $status >= 300) return array(false, $status);
+  $j = json_decode((string)$resp, true);
+  if (is_array($j) && (isset($j['error']) || (isset($j['status']) && $j['status'] === 'error'))) return array(false, $status);
+  return array(true, $status);
+}
+function gem_ctm($cfg, $form, $f, $email, $lead, $test, $id) {
+  if (!gem_ctm_on($cfg)) return;   // not connected: no call, no log line
+  $status = 0;
+  try {
+    if ($test && !$cfg['CTM_SEND_TESTS']) { gem_log('relay', 'ctm skipped: test lead ' . $id); return; }
+    $url = gem_ctm_url($cfg);
+    if ($url === '') { gem_log('relay', 'ctm skipped: CTM_FORM_ID is not a form id, lead ' . $id); return; }
+    $p = gem_ctm_payload($form, $f, $email, is_array($lead) ? $lead : array(), $test);
+    if (!$p) { gem_log('relay', 'ctm skipped: no phone, lead ' . $id); return; }
+    list($ok, $status) = gem_ctm_post($cfg, $url, $p);
+    if ($ok) { gem_log('relay', 'ctm sent lead ' . $id . ' status ' . $status); return; }
+  } catch (\Throwable $e) { $status = 0; }
+  gem_log('relay', 'ctm FAILED lead ' . $id . ' status ' . $status);
+  $dir = gem_spool_dir($cfg);
+  if ($dir) gem_append($dir . '/ctm-retry.jsonl', array('id' => $id, 'at' => gmdate('c'), 'status' => $status));
+}
+
 // ---- the request -----------------------------------------------------------------------------------------------------------
 function gem_handle() {
   if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { header('Allow: POST'); gem_respond(405, array('ok' => false, 'error' => 'method')); }
@@ -487,6 +639,15 @@ function gem_handle() {
       header('Retry-After: ' . $wait);
       gem_respond(429, array('ok' => false, 'error' => 'rate'));
     }
+    // after the limit, so a flood is refused before each request costs a siteverify call
+    if ($cfg['TURNSTILE_SECRET'] !== '') {
+      $v = gem_turnstile($cfg, $lead['turnstile'] ?? null);
+      if ($v[0] === 'refused') {
+        gem_log('relay', 'turnstile refused (' . $v[1] . ') (' . substr(gem_client_key(), 0, 8) . ') form ' . $form);
+        gem_respond(400, array('ok' => false, 'error' => 'verify'));
+      }
+      if ($v[0] === 'unreachable') gem_log('relay', 'turnstile unreachable (' . $v[1] . '), lead accepted, form ' . $form);
+    }
   }
 
   $body = gem_compose($cfg, $form, $f, $email, $lead, $file ? $file['name'] : null, $test);
@@ -520,10 +681,13 @@ function gem_handle() {
     if ($dir) gem_append($dir . '/sent.jsonl', array('id' => $id, 'resend_id' => $r[2], 'at' => gmdate('c')));
     gem_log('relay', 'sent lead ' . $id . ($test ? ' (test)' : '') . ' resend ' . $r[2]);
     gem_autoreply($cfg, $form, $f, $email, $test, $id);
-    gem_respond(200, array('ok' => true, 'id' => $r[2]));
+    gem_respond(200, array('ok' => true, 'id' => $r[2]), function () use ($cfg, $form, $f, $email, $lead, $test, $id) { gem_ctm($cfg, $form, $f, $email, $lead, $test, $id); });
   }
   gem_log('relay', 'resend FAILED lead ' . $id . ' (' . $r[1] . ' ' . $r[2] . ')' . ($spooled ? ' queued in spool' : ' NOT SAVED'));
-  if ($spooled) { gem_autoreply($cfg, $form, $f, $email, $test, $id); gem_respond(200, array('ok' => true, 'queued' => true, 'id' => $id)); }   // safe on disk; --replay sends it
+  if ($spooled) {   // safe on disk; --replay sends it. Accepted, so CTM gets it too (after the answer)
+    gem_autoreply($cfg, $form, $f, $email, $test, $id);
+    gem_respond(200, array('ok' => true, 'queued' => true, 'id' => $id), function () use ($cfg, $form, $f, $email, $lead, $test, $id) { gem_ctm($cfg, $form, $f, $email, $lead, $test, $id); });
+  }
   gem_respond(502, array('ok' => false, 'error' => 'send'));
 }
 

@@ -44,6 +44,22 @@ implementation is GEMCAP's (`.claude/skills/site-method/examples/lead-kit/`: `le
   ledger). When confirmations run on 3+ sites, tell Arthur the plan needs upgrading before the cap bites.
 - **Links out open in a new tab, enforced by the build** (a post-build HTML pass, TMC `strip-internal.mjs`
   `externalNewTab`), not by hand: migrated blog posts carried 30 same-tab links on TMC (found 2026-10-22).
+- **Every form lead goes to the client's CTM** (Erick, GEMCAP 2026-10-29: form leads never reached CTM), unless the
+  site is hosting-only or the client has no CTM account. After the lead email (email stays first: a CTM outage never
+  loses a lead), the server POSTs it to a FormReactor set to **log form entries only** (never calls anyone; default
+  number = the "Website" source), with the visitor's CTM session (`ctm_sid` from `__ctm.config.sid` / `__ctmid`) and
+  custom fields Form Type / Landing Page / Sent From Page / Request Summary; failures log + `ctm-retry.jsonl`; off
+  until its keys are set. **Phone required on every form** (CTM rejects an entry without one); the server still
+  accepts a phoneless lead by email. Prove it with a test lead in CTM (`CTM_SEND_TESTS` on, then off). Reference:
+  GEMCAP `lead.php` `gem_ctm_*` + tests. Also check the CTM sources: a source with no rule catches every visitor
+  (GEMCAP's "Email Marketing" did).
+- **Conversions fire on the thank-you page, which loads tags at once** (Erick, GEMCAP 2026-10-29). Forms redirect
+  to `/thank-you/...` only after the server accepted the lead; GTM's Ads conversion and Meta Lead trigger on that
+  page view (`Page Path matches RegEx ^/thank-you/`), never on GTM's Form Submission trigger (it fires on invalid or
+  blocked submits too). The tag loader's interaction/3 s delay is skipped on `/thank-you/*` (noindex, no LCP budget),
+  so a visitor who leaves at once is still counted. Phone-click events trigger on `Click URL starts with tel:` (CTM
+  swaps the number per source), never one number. In GTM, conditions inside one trigger are ANDed: two pages = one
+  regex or two triggers. When we read or set up anyone's GTM, check these.
 - **Light/dark theme toggle**, ported from GEMCAP (TMC, GEMCAP and Elevate have it; Erick asked for it on Cold Air).
 - **Ad landing pages** (`/lp/*`): noindex by header and meta, out of the sitemap, from the first deploy.
 - **File-integrity guard** (`tools/site-guard`) on every host we run (cPanel): manifest per publish.

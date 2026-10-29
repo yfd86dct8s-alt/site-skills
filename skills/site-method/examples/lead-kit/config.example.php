@@ -33,6 +33,27 @@ return array(
   // CSC-Webhost-001: its proxy already puts the real visitor in REMOTE_ADDR, and those headers can be faked.
   // 'TRUST_PROXY_HEADERS' => false,
 
+  // Optional. Cloudflare Turnstile (the forms' bot check): the widget's SECRET key from the Cloudflare dashboard
+  // (Turnstile -> the gemcaptrucking.com widget). '' = off. Set it only together with a site build that has the site key
+  // (~/.tmc-private/gemcap-turnstile-sitekey.txt on the machine that runs stage.mjs): with the secret set and no widget
+  // on the forms, every lead would be refused. When on, a final submit without a token siteverify accepts gets 400
+  // "verify"; if siteverify cannot be reached the lead is accepted and relay.log says "turnstile unreachable".
+  // 'TURNSTILE_SECRET' => '',
+  // Optional. Only the local tests change this (a stub); leave it out in production.
+  // 'TURNSTILE_VERIFY_URL' => 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+
+  // Optional. CallTrackingMetrics: each accepted lead with a US phone is also sent to this FormReactor (after the email,
+  // after the visitor's answer), tied to the visitor's CTM session. Off while any of the three is empty. Form id = the
+  // FRT... string in the FormReactor's URL; keys = the account's API access key + secret (CTM -> Settings -> API).
+  // Values via ops/set-config.mjs (from ~/.tmc-private, never printed).
+  // 'CTM_FORM_ID' => '',
+  // 'CTM_ACCESS_KEY' => '',
+  // 'CTM_SECRET_KEY' => '',
+  // Send X-Lead-Test leads to CTM too (named "[TEST] ..."); off by default. '1'/'true' = on.
+  // 'CTM_SEND_TESTS' => false,
+  // Optional. Only the local tests change this (a stub on http://127.0.0.1; any other value is ignored).
+  // 'CTM_API_URL' => '',
+
   // Optional. Where leads are kept (outside public_html). Default: the "spool" folder next to this file.
   // 'SPOOL_DIR' => __DIR__ . '/spool',
   // Optional. Only the local tests change this (a stub); leave it out in production.
